@@ -1,0 +1,45 @@
+  name: Deploy to Hetzner
+
+  on:
+    push:
+      branches:
+        - main
+
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Deploy to Server
+          uses: appleboy/ssh-action@v1.0.0
+          with:
+            host: ${{ secrets.SSH_HOST }}
+            username: ${{ secrets.SSH_USER }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            script: |
+              cd /root/google-rag-chatbot
+
+              echo "🔄 Pulling latest code..."
+              git pull origin main
+
+              echo "📝 Checking .env.local..."
+              if [ ! -f .env.local ]; then
+                echo "Creating .env.local..."
+                echo "GOOGLE_AI_API_KEY=${{ secrets.GOOGLE_AI_API_KEY }}" > .env.local
+                echo "NODE_ENV=production" >> .env.local
+                echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium" >> .env.local
+              fi
+
+              echo "📦 Installing dependencies..."
+              npm install
+
+              echo "🔨 Building application..."
+              npm run build
+
+              echo "🚀 Restarting application..."
+              pm2 restart rag-chatbot || pm2 start npm --name "rag-chatbot" -- start
+              pm2 save
+
+              echo "✅ Deployment completed!"
+
+
