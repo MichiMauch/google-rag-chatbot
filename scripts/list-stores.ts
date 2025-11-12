@@ -1,16 +1,19 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 /**
  * Script to list all File Search Stores and their storage usage
  *
  * Usage:
- *   node scripts/list-stores.js
+ *   npx tsx scripts/list-stores.ts
  *
  * Or on server:
- *   cd /root/google-rag-chatbot && node scripts/list-stores.js
+ *   cd /root/google-rag-chatbot && npx tsx scripts/list-stores.ts
  */
 
-import { GoogleAIFileManager } from "@google/genai/files";
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
+import { GoogleGenAI } from "@google/genai";
 
 const apiKey = process.env.GOOGLE_AI_API_KEY;
 
@@ -20,14 +23,14 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const fileManager = new GoogleAIFileManager(apiKey);
+const ai = new GoogleGenAI({ apiKey });
 
 async function listFileSearchStores() {
   try {
     console.log("📊 Lade File Search Stores...\n");
 
     // List all file search stores
-    const stores = await fileManager.fileSearchStores.list();
+    const stores = await ai.fileSearchStores.list();
 
     if (!stores.fileSearchStores || stores.fileSearchStores.length === 0) {
       console.log("ℹ️  Keine File Search Stores gefunden.");
@@ -42,10 +45,13 @@ async function listFileSearchStores() {
     for (const store of stores.fileSearchStores) {
       console.log(`📁 ${store.displayName || store.name}`);
       console.log(`   ID: ${store.name}`);
-      console.log(`   Erstellt: ${new Date(store.createTime).toLocaleString('de-DE')}`);
 
-      // Try to get file count (this might not work directly, we'll estimate)
-      const fileCount = store.fileCount || "unbekannt";
+      if (store.createTime) {
+        console.log(`   Erstellt: ${new Date(store.createTime).toLocaleString('de-DE')}`);
+      }
+
+      // Try to get file count
+      const fileCount = (store as any).fileCount || "unbekannt";
       console.log(`   Dateien: ${fileCount}`);
 
       if (typeof fileCount === 'number') {
@@ -68,9 +74,11 @@ async function listFileSearchStores() {
     console.log(`   Auslastung: ${((totalEstimatedSize / 1024) * 100).toFixed(1)}%`);
     console.log("═".repeat(60));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Fehler beim Laden der Stores:", error.message);
-    console.error(error);
+    if (error.stack) {
+      console.error(error.stack);
+    }
   }
 }
 
