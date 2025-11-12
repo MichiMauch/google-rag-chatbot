@@ -148,21 +148,33 @@ export async function POST(request: NextRequest) {
         // Take the newest maxPages articles
         const urlsToScrape = urlsWithDates.slice(0, maxPages).map(u => u.url);
 
-        console.log(`Scraping ${urlsToScrape.length} newest pages...`);
+        console.log(`Scraping ${urlsToScrape.length} newest pages in batches...`);
 
-        // Scrape pages
-        const scrapedPages = await scrapeMultiplePages(urlsToScrape, 3, 1000);
-        console.log(`Successfully scraped ${scrapedPages.length} pages`);
-
-        if (scrapedPages.length === 0) {
-          return NextResponse.json(
-            { error: "Keine Seiten konnten gescraped werden" },
-            { status: 500 }
-          );
+        // Split into batches of 10 to avoid timeout
+        const batchSize = 10;
+        const batches: string[][] = [];
+        for (let i = 0; i < urlsToScrape.length; i += batchSize) {
+          batches.push(urlsToScrape.slice(i, i + batchSize));
         }
 
-        // Upload scraped content to File Search Store
-        for (const page of scrapedPages) {
+        let totalScrapedPages = 0;
+
+        // Process each batch
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          console.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} pages)...`);
+
+          // Scrape pages in this batch
+          const scrapedPages = await scrapeMultiplePages(batch, 3, 1000);
+          console.log(`Successfully scraped ${scrapedPages.length} pages in batch ${batchIndex + 1}`);
+
+          if (scrapedPages.length === 0) {
+            console.warn(`Batch ${batchIndex + 1} resulted in 0 pages`);
+            continue;
+          }
+
+          // Upload scraped content from this batch immediately
+          for (const page of scrapedPages) {
           const textContent = `Title: ${page.title}\nURL: ${page.url}\n${
             page.description ? `Description: ${page.description}\n` : ""
           }\n\n${page.content}`;
@@ -229,12 +241,16 @@ export async function POST(request: NextRequest) {
             });
 
             console.log(`Uploaded: ${page.title} with URI: ${fileUri}`);
+            totalScrapedPages++;
           } else if (operation.error) {
             console.error(`Upload failed for ${page.title}:`, operation.error);
           }
+          }
+
+          console.log(`Batch ${batchIndex + 1}/${batches.length} completed. Total uploaded so far: ${uploadedFiles.length}`);
         }
 
-        console.log(`Uploaded ${uploadedFiles.length} files to Gemini`);
+        console.log(`All batches completed! Successfully uploaded ${uploadedFiles.length} files to Gemini`);
       } catch (error: any) {
         console.error("Website scraping error:", error);
         return NextResponse.json(
