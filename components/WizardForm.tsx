@@ -129,8 +129,8 @@ export default function WizardForm() {
         // Redirect to chat
         router.push(`/chats/${chatSlug}`);
       } else {
-        // Scrape website from sitemap
-        setUploadProgress("Sitemap wird gescraped...");
+        // Scrape website from sitemap - ASYNC
+        setUploadProgress("Scraping-Job wird gestartet...");
         const response = await fetch("/api/create-chat", {
           method: "POST",
           headers: {
@@ -148,16 +148,56 @@ export default function WizardForm() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Fehler beim Scrapen der Website");
+          throw new Error(errorData.error || "Fehler beim Starten des Scraping-Jobs");
         }
 
         const data = await response.json();
+        const jobId = data.jobId;
 
-        // Save chat config to localStorage
-        localStorage.setItem(`chat-config-${chatSlug}`, JSON.stringify(data.chatConfig));
+        if (!jobId) {
+          throw new Error("Keine Job-ID erhalten");
+        }
 
-        // Redirect to chat
-        router.push(`/chats/${chatSlug}`);
+        // Poll job status
+        let attempts = 0;
+        const maxAttempts = 200; // 10 minutes max (200 * 3s)
+
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+
+          const statusResponse = await fetch(`/api/job-status/${jobId}`);
+          if (!statusResponse.ok) {
+            throw new Error("Fehler beim Abrufen des Job-Status");
+          }
+
+          const statusData = await statusResponse.json();
+          const job = statusData.job;
+
+          // Update progress message
+          if (job.message) {
+            setUploadProgress(`${job.message} (${job.progress}%)`);
+          }
+
+          // Check if completed
+          if (job.status === "completed") {
+            // Save chat config to localStorage
+            localStorage.setItem(`chat-config-${chatSlug}`, JSON.stringify(job.chatConfig));
+
+            // Redirect to chat
+            router.push(`/chats/${chatSlug}`);
+            return;
+          }
+
+          // Check if error
+          if (job.status === "error") {
+            throw new Error(job.error || "Fehler beim Scraping");
+          }
+
+          attempts++;
+        }
+
+        // Timeout
+        throw new Error("Timeout: Scraping dauert zu lange");
       }
     } catch (err: any) {
       console.error("Fehler beim Erstellen des Chats:", err);
