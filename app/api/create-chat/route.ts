@@ -8,6 +8,7 @@ import {
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 600; // 10 minutes timeout for long scraping processes
 
 const MAX_PAGES = 30; // Reduced from 50 to optimize API usage
 
