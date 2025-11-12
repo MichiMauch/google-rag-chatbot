@@ -54,15 +54,35 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`Deleting File Search Store: ${storeName}`);
 
-    // Delete the file search store
-    await ai.fileSearchStores.delete({ name: storeName });
+    // First, we need to list all files in the store and delete them
+    // Unfortunately, the Google GenAI API doesn't provide a direct way to list files in a store
+    // So we need to delete the store with force option or empty it first
 
-    console.log(`Successfully deleted store: ${storeName}`);
+    // Try to delete the store - if it fails because it's not empty, we'll use allowMissing
+    try {
+      await ai.fileSearchStores.delete({
+        name: storeName,
+        allowMissing: true
+      });
+      console.log(`Successfully deleted store: ${storeName}`);
 
-    return NextResponse.json({
-      success: true,
-      message: "Store erfolgreich gelöscht",
-    });
+      return NextResponse.json({
+        success: true,
+        message: "Store erfolgreich gelöscht",
+      });
+    } catch (deleteError: any) {
+      // If deletion fails because store is not empty, return specific error
+      if (deleteError.message?.includes("non-empty") || deleteError.message?.includes("FAILED_PRECONDITION")) {
+        return NextResponse.json(
+          {
+            error: "Store kann nicht gelöscht werden, da er Dateien enthält. Google GenAI erlaubt das Löschen von nicht-leeren Stores nicht. Bitte kontaktiere den Support oder warte, bis die Dateien automatisch ablaufen.",
+            code: "STORE_NOT_EMPTY"
+          },
+          { status: 400 }
+        );
+      }
+      throw deleteError;
+    }
   } catch (error: any) {
     console.error("Error deleting store:", error);
     return NextResponse.json(

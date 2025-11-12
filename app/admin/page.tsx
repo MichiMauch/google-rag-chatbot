@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, HardDrive, Database, Trash2 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 interface FileSearchStore {
   name: string;
@@ -52,9 +53,10 @@ export default function AdminPage() {
       return;
     }
 
-    try {
-      setDeletingStore(storeName);
+    setDeletingStore(storeName);
+    const loadingToast = toast.loading(`Lösche "${displayName}"...`);
 
+    try {
       const response = await fetch("/api/admin/stores", {
         method: "DELETE",
         headers: {
@@ -63,16 +65,24 @@ export default function AdminPage() {
         body: JSON.stringify({ storeName }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || "Fehler beim Löschen");
       }
+
+      toast.success(`"${displayName}" wurde erfolgreich gelöscht`, {
+        id: loadingToast,
+      });
 
       // Reload stats after successful deletion
       await loadStats();
     } catch (err: any) {
       console.error("Error deleting store:", err);
-      alert(`Fehler beim Löschen: ${err.message}`);
+      toast.error(err.message || "Fehler beim Löschen des Stores", {
+        id: loadingToast,
+        duration: 6000,
+      });
     } finally {
       setDeletingStore(null);
     }
@@ -116,6 +126,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
