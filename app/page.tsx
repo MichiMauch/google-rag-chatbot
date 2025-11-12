@@ -8,14 +8,22 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-center space-x-3">
-          <div className="relative">
-            <FileText className="w-10 h-10 text-blue-500" />
-            <Bot className="w-5 h-5 text-blue-600 absolute -bottom-1 -right-1" />
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <FileText className="w-10 h-10 text-blue-500" />
+              <Bot className="w-5 h-5 text-blue-600 absolute -bottom-1 -right-1" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Google RAG Chatbot
+            </h1>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Google RAG Chatbot
-          </h1>
+          <a
+            href="/admin"
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Admin
+          </a>
         </div>
       </div>
 
