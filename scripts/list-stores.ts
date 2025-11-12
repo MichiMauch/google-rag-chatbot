@@ -32,17 +32,20 @@ async function listFileSearchStores() {
     // List all file search stores
     const stores = await ai.fileSearchStores.list();
 
-    if (!stores.fileSearchStores || stores.fileSearchStores.length === 0) {
+    // The API returns data in pageInternal
+    const storeList = (stores as any).pageInternal || [];
+
+    if (!storeList || storeList.length === 0) {
       console.log("ℹ️  Keine File Search Stores gefunden.");
       return;
     }
 
-    console.log(`✅ ${stores.fileSearchStores.length} Store(s) gefunden:\n`);
+    console.log(`✅ ${storeList.length} Store(s) gefunden:\n`);
 
     let totalFiles = 0;
-    let totalEstimatedSize = 0;
+    let totalSizeBytes = 0;
 
-    for (const store of stores.fileSearchStores) {
+    for (const store of storeList) {
       console.log(`📁 ${store.displayName || store.name}`);
       console.log(`   ID: ${store.name}`);
 
@@ -50,28 +53,32 @@ async function listFileSearchStores() {
         console.log(`   Erstellt: ${new Date(store.createTime).toLocaleString('de-DE')}`);
       }
 
-      // Try to get file count
-      const fileCount = (store as any).fileCount || "unbekannt";
+      // Get actual file count and size from API
+      const fileCount = parseInt(store.activeDocumentsCount || "0");
+      const sizeBytes = parseInt(store.sizeBytes || "0");
+
       console.log(`   Dateien: ${fileCount}`);
 
-      if (typeof fileCount === 'number') {
-        totalFiles += fileCount;
-        // Estimate: Each text file is roughly 20-50 KB, let's use 30 KB average
-        const estimatedSize = (fileCount * 30) / 1024; // in MB
-        totalEstimatedSize += estimatedSize;
-        console.log(`   Geschätzte Größe: ~${estimatedSize.toFixed(2)} MB`);
+      if (sizeBytes > 0) {
+        const sizeMB = sizeBytes / (1024 * 1024);
+        console.log(`   Größe: ${sizeMB.toFixed(2)} MB (${sizeBytes.toLocaleString('de-DE')} Bytes)`);
+        totalSizeBytes += sizeBytes;
       }
+
+      totalFiles += fileCount;
 
       console.log("");
     }
 
+    const totalSizeMB = totalSizeBytes / (1024 * 1024);
+
     console.log("═".repeat(60));
     console.log(`📊 ZUSAMMENFASSUNG:`);
-    console.log(`   Stores: ${stores.fileSearchStores.length}`);
+    console.log(`   Stores: ${storeList.length}`);
     console.log(`   Dateien gesamt: ${totalFiles}`);
-    console.log(`   Geschätzte Größe gesamt: ~${totalEstimatedSize.toFixed(2)} MB`);
-    console.log(`   Verfügbar (Free Tier): ~${(1024 - totalEstimatedSize).toFixed(2)} MB von 1024 MB`);
-    console.log(`   Auslastung: ${((totalEstimatedSize / 1024) * 100).toFixed(1)}%`);
+    console.log(`   Größe gesamt: ${totalSizeMB.toFixed(2)} MB (${totalSizeBytes.toLocaleString('de-DE')} Bytes)`);
+    console.log(`   Verfügbar (Free Tier): ${(1024 - totalSizeMB).toFixed(2)} MB von 1024 MB`);
+    console.log(`   Auslastung: ${((totalSizeMB / 1024) * 100).toFixed(2)}%`);
     console.log("═".repeat(60));
 
   } catch (error: any) {
