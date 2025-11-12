@@ -176,7 +176,7 @@ export async function scrapePage(url: string, browser: Browser): Promise<Scraped
       }
 
       // Extract text content
-      const content = contentElement?.innerText || '';
+      const content = (contentElement as HTMLElement | null)?.innerText || '';
 
       // Extract images from main content
       const images: string[] = [];

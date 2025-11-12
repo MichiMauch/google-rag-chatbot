@@ -210,9 +210,9 @@ export async function POST(request: NextRequest) {
           }
 
           if (operation.done && !operation.error) {
-            // Extract file information from operation result
-            // Note: fileSearchStore.name already contains "fileSearchStores/..." prefix
-            const fileUri = operation.response?.file?.uri || `${fileSearchStore.name}/files/${filename}`;
+            // Construct URI - operation.response doesn't contain file details for uploadToFileSearchStore
+            // The file is accessible via the store name + filename
+            const fileUri = `${fileSearchStore.name}/files/${filename}`;
 
             uploadedFiles.push({
               name: filename,

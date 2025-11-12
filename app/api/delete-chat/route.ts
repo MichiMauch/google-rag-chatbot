@@ -15,12 +15,9 @@ export async function POST(request: NextRequest) {
     console.log(`Deleting File Search Store for chat: ${chatName}`);
     console.log(`Store name: ${fileSearchStoreName}`);
 
-    // Delete the File Search Store (with forceDelete to remove all files)
+    // Delete the File Search Store
     await ai.fileSearchStores.delete({
       name: fileSearchStoreName,
-      config: {
-        forceDelete: true,
-      },
     });
 
     console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
