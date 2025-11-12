@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 import {
-  findSitemapUrl,
-  parseSitemap,
+  parseSitemapWithDates,
   scrapeMultiplePages,
 } from "@/lib/scraper";
 
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
       uploadType,
       themeId,
       files,
-      websiteUrl,
+      sitemapUrl,
       maxPages = MAX_PAGES,
     } = await request.json();
 
@@ -100,52 +99,57 @@ export async function POST(request: NextRequest) {
 
       console.log(`Imported ${uploadedFiles.length} files into File Search Store`);
     } else if (uploadType === "website") {
-      // Scrape website
-      if (!websiteUrl) {
+      // Scrape website from sitemap URL
+      if (!sitemapUrl) {
         return NextResponse.json(
-          { error: "Keine Website-URL angegeben" },
+          { error: "Keine Sitemap-URL angegeben" },
           { status: 400 }
         );
       }
 
       try {
-        const baseUrl = new URL(websiteUrl);
+        console.log(`Parsing sitemap: ${sitemapUrl}`);
 
-        // Step 1: Find sitemap
-        console.log(`Finding sitemap for ${baseUrl.href}...`);
-        const sitemapUrl = await findSitemapUrl(baseUrl.href);
+        // Parse sitemap with dates
+        let urlsWithDates = await parseSitemapWithDates(sitemapUrl);
 
-        let urlsToScrape: string[] = [];
+        // Handle sitemap index by recursively fetching child sitemaps
+        if (
+          urlsWithDates.length > 0 &&
+          urlsWithDates[0].url.includes("sitemap") &&
+          urlsWithDates[0].url.endsWith(".xml")
+        ) {
+          console.log("Detected sitemap index, fetching child sitemaps...");
+          const allUrlsWithDates: Array<{ url: string; date?: Date }> = [];
 
-        if (sitemapUrl) {
-          console.log(`Found sitemap: ${sitemapUrl}`);
-          let sitemapUrls = await parseSitemap(sitemapUrl);
-
-          // Handle sitemap index by recursively fetching child sitemaps
-          if (
-            sitemapUrls.length > 0 &&
-            sitemapUrls[0].includes("sitemap") &&
-            sitemapUrls[0].endsWith(".xml")
-          ) {
-            console.log("Detected sitemap index, fetching child sitemaps...");
-            const allUrls: string[] = [];
-            for (const childSitemapUrl of sitemapUrls.slice(0, 5)) {
-              const childUrls = await parseSitemap(childSitemapUrl);
-              allUrls.push(...childUrls);
-            }
-            sitemapUrls = allUrls;
+          // Fetch first 5 child sitemaps
+          for (const childSitemapUrl of urlsWithDates.slice(0, 5).map(u => u.url)) {
+            const childUrls = await parseSitemapWithDates(childSitemapUrl);
+            allUrlsWithDates.push(...childUrls);
           }
-
-          console.log(`Found ${sitemapUrls.length} URLs in sitemap`);
-          urlsToScrape = sitemapUrls.slice(0, maxPages);
-        } else {
-          console.log("No sitemap found, scraping homepage only");
-          urlsToScrape = [baseUrl.href];
+          urlsWithDates = allUrlsWithDates;
         }
 
-        console.log(`Scraping ${urlsToScrape.length} pages...`);
+        console.log(`Found ${urlsWithDates.length} URLs in sitemap`);
 
-        // Step 2: Scrape pages
+        // Sort by date (newest first) - URLs with dates come first, then URLs without dates
+        urlsWithDates.sort((a, b) => {
+          if (a.date && b.date) {
+            return b.date.getTime() - a.date.getTime(); // Newest first
+          } else if (a.date) {
+            return -1; // URLs with dates come first
+          } else if (b.date) {
+            return 1; // URLs with dates come first
+          }
+          return 0; // Keep original order for URLs without dates
+        });
+
+        // Take the newest maxPages articles
+        const urlsToScrape = urlsWithDates.slice(0, maxPages).map(u => u.url);
+
+        console.log(`Scraping ${urlsToScrape.length} newest pages...`);
+
+        // Scrape pages
         const scrapedPages = await scrapeMultiplePages(urlsToScrape, 3, 1000);
         console.log(`Successfully scraped ${scrapedPages.length} pages`);
 
@@ -156,7 +160,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Step 3: Upload scraped content to File Search Store
+        // Upload scraped content to File Search Store
         for (const page of scrapedPages) {
           const textContent = `Title: ${page.title}\nURL: ${page.url}\n${
             page.description ? `Description: ${page.description}\n` : ""

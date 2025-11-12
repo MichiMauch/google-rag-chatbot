@@ -55,9 +55,9 @@ export async function findSitemapUrl(baseUrl: string): Promise<string | null> {
 }
 
 /**
- * Parse sitemap XML and extract URLs
+ * Parse sitemap XML and extract URLs with dates
  */
-export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+export async function parseSitemapWithDates(sitemapUrl: string): Promise<Array<{ url: string; date?: Date }>> {
   try {
     const response = await fetch(sitemapUrl);
     const xml = await response.text();
@@ -69,35 +69,53 @@ export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
           return;
         }
 
-        const urls: string[] = [];
+        const urlsWithDates: Array<{ url: string; date?: Date }> = [];
 
-        // Handle sitemap index
+        // Handle sitemap index (return child sitemap URLs)
         if (result.sitemapindex) {
           const sitemaps = result.sitemapindex.sitemap || [];
           for (const sitemap of sitemaps) {
             if (sitemap.loc && sitemap.loc[0]) {
-              urls.push(sitemap.loc[0]);
+              urlsWithDates.push({ url: sitemap.loc[0] });
             }
           }
         }
 
-        // Handle regular sitemap
+        // Handle regular sitemap with dates
         if (result.urlset) {
           const urlElements = result.urlset.url || [];
           for (const urlElement of urlElements) {
             if (urlElement.loc && urlElement.loc[0]) {
-              urls.push(urlElement.loc[0]);
+              const url = urlElement.loc[0];
+
+              // Try to extract date from lastmod or pubDate
+              let date: Date | undefined;
+              if (urlElement.lastmod && urlElement.lastmod[0]) {
+                date = new Date(urlElement.lastmod[0]);
+              } else if (urlElement['pubDate'] && urlElement['pubDate'][0]) {
+                date = new Date(urlElement['pubDate'][0]);
+              }
+
+              urlsWithDates.push({ url, date });
             }
           }
         }
 
-        resolve(urls);
+        resolve(urlsWithDates);
       });
     });
   } catch (error) {
     console.error('Error parsing sitemap:', error);
     return [];
   }
+}
+
+/**
+ * Parse sitemap XML and extract URLs (legacy function for backwards compatibility)
+ */
+export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+  const urlsWithDates = await parseSitemapWithDates(sitemapUrl);
+  return urlsWithDates.map(item => item.url);
 }
 
 /**

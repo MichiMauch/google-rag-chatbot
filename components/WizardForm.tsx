@@ -14,7 +14,7 @@ export default function WizardForm() {
   const [chatName, setChatName] = useState("");
   const [selectedTheme, setSelectedTheme] = useState(themes[0].id);
   const [files, setFiles] = useState<File[]>([]);
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [sitemapUrl, setSitemapUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string>("");
@@ -38,7 +38,7 @@ export default function WizardForm() {
       fileInputRef.current.value = "";
     }
     setFiles([]);
-    setWebsiteUrl("");
+    setSitemapUrl("");
     setError(null);
   }
 
@@ -61,8 +61,8 @@ export default function WizardForm() {
       return;
     }
 
-    if (uploadType === "website" && !websiteUrl.trim()) {
-      setError("Bitte gib eine Website-URL ein");
+    if (uploadType === "website" && !sitemapUrl.trim()) {
+      setError("Bitte gib eine Sitemap-URL ein");
       setLoading(false);
       return;
     }
@@ -129,8 +129,8 @@ export default function WizardForm() {
         // Redirect to chat
         router.push(`/chats/${chatSlug}`);
       } else {
-        // Scrape website
-        setUploadProgress("Website wird gescraped...");
+        // Scrape website from sitemap
+        setUploadProgress("Sitemap wird gescraped...");
         const response = await fetch("/api/create-chat", {
           method: "POST",
           headers: {
@@ -141,7 +141,7 @@ export default function WizardForm() {
             displayName: chatName,
             uploadType,
             themeId: selectedTheme,
-            websiteUrl,
+            sitemapUrl,
             maxPages: 50,
           }),
         });
@@ -281,21 +281,21 @@ export default function WizardForm() {
         </div>
       ) : (
         <div className="space-y-2" key="website-upload">
-          <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700">
-            Website-URL
+          <label htmlFor="sitemapUrl" className="block text-sm font-medium text-gray-700">
+            Sitemap-URL
           </label>
           <input
-            id="websiteUrl"
+            id="sitemapUrl"
             type="url"
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-            placeholder="https://example.com"
+            value={sitemapUrl}
+            onChange={(e) => setSitemapUrl(e.target.value)}
+            placeholder="https://example.com/sitemap.xml"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading}
             required
           />
           <p className="text-xs text-gray-500">
-            Es werden bis zu 50 Seiten der Website automatisch gescraped
+            Die 50 neuesten Artikel aus der Sitemap werden gescraped
           </p>
         </div>
       )}
