@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 
 export async function GET() {
@@ -36,6 +36,37 @@ export async function GET() {
     console.error("Error loading stores:", error);
     return NextResponse.json(
       { error: error.message || "Fehler beim Laden der Stores" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { storeName } = await request.json();
+
+    if (!storeName) {
+      return NextResponse.json(
+        { error: "Store-Name erforderlich" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Deleting File Search Store: ${storeName}`);
+
+    // Delete the file search store
+    await ai.fileSearchStores.delete({ name: storeName });
+
+    console.log(`Successfully deleted store: ${storeName}`);
+
+    return NextResponse.json({
+      success: true,
+      message: "Store erfolgreich gelöscht",
+    });
+  } catch (error: any) {
+    console.error("Error deleting store:", error);
+    return NextResponse.json(
+      { error: error.message || "Fehler beim Löschen des Stores" },
       { status: 500 }
     );
   }

@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StoreStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingStore, setDeletingStore] = useState<string | null>(null);
 
   async function loadStats() {
     try {
@@ -43,6 +44,37 @@ export default function AdminPage() {
       setError(err.message || "Ein Fehler ist aufgetreten");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function deleteStore(storeName: string, displayName: string) {
+    if (!confirm(`Möchtest du "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+
+    try {
+      setDeletingStore(storeName);
+
+      const response = await fetch("/api/admin/stores", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ storeName }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+
+      // Reload stats after successful deletion
+      await loadStats();
+    } catch (err: any) {
+      console.error("Error deleting store:", err);
+      alert(`Fehler beim Löschen: ${err.message}`);
+    } finally {
+      setDeletingStore(null);
     }
   }
 
@@ -212,11 +244,16 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled
-                          title="Löschen (noch nicht implementiert)"
+                          onClick={() => deleteStore(store.name, store.displayName)}
+                          disabled={deletingStore === store.name}
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-1"
+                          title="Store löschen"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingStore === store.name ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       </td>
                     </tr>
