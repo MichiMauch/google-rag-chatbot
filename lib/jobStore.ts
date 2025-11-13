@@ -17,8 +17,14 @@ export interface JobStatus {
   updatedAt: number;
 }
 
-// In-memory store (will be cleared on server restart)
-const jobs = new Map<string, JobStatus>();
+// Use globalThis to persist across hot reloads in development
+const globalForJobs = globalThis as unknown as {
+  jobs: Map<string, JobStatus> | undefined;
+};
+
+// In-memory store (will be cleared on server restart, but persists across hot reloads)
+const jobs = globalForJobs.jobs ?? new Map<string, JobStatus>();
+globalForJobs.jobs = jobs;
 
 // Cleanup old jobs after 1 hour
 const JOB_RETENTION_TIME = 60 * 60 * 1000; // 1 hour
@@ -58,13 +64,15 @@ export function deleteJob(jobId: string): boolean {
   return jobs.delete(jobId);
 }
 
-// Cleanup old jobs periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [jobId, job] of jobs.entries()) {
-    if (now - job.updatedAt > JOB_RETENTION_TIME) {
-      jobs.delete(jobId);
-      console.log(`Cleaned up old job: ${jobId}`);
+// Cleanup old jobs periodically (only start once)
+if (!globalForJobs.jobs) {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [jobId, job] of jobs.entries()) {
+      if (now - job.updatedAt > JOB_RETENTION_TIME) {
+        jobs.delete(jobId);
+        console.log(`Cleaned up old job: ${jobId}`);
+      }
     }
-  }
-}, 5 * 60 * 1000); // Run every 5 minutes
+  }, 5 * 60 * 1000); // Run every 5 minutes
+}
