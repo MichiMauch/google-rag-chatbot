@@ -3,106 +3,59 @@
   "displayName": "test",
   "uploadType": "website",
   "themeId": "blue",
-  "fileSearchStoreName": "fileSearchStores/test-test-d2w8393rxtz9",
+  "fileSearchStoreName": "fileSearchStores/test-test-4t657re3lf6v",
   "files": [
     {
-      "name": "scraped-1763054740123-Webseiten-Relaunch-Checkliste----NETNODE-AG.txt",
-      "displayName": "Webseiten Relaunch Checkliste. | NETNODE AG",
+      "name": "scraped-1763062828830-KOKOMO-House.txt",
+      "displayName": "KOKOMO House",
       "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054740123-Webseiten-Relaunch-Checkliste----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/relaunch-checkliste",
+      "uri": "fileSearchStores/test-test-4t657re3lf6v/files/scraped-1763062828830-KOKOMO-House.txt",
+      "url": "https://www.kokomo.house/",
       "images": [
-        "https://netnode.nodehive.app/sites/default/files/styles/wide/public/2024-10/Vorschau-Webseiten-Relauch-Checkliste-Vorschau.png?itok=x4bW99td"
+        "https://www.kokomo.house/_next/image?url=https%3A%2F%2Fpub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev%2FTinyHouse_170722_21.webp%3Fheight%3D600%26width%3D600&w=3840&q=75"
       ]
     },
     {
-      "name": "scraped-1763054748518-Erfolgreicher-Webseiten-Relaunch----NETNODE-AG.txt",
-      "displayName": "Erfolgreicher Webseiten Relaunch. | NETNODE AG",
+      "name": "scraped-1763062835480-KOKOMO-House.txt",
+      "displayName": "KOKOMO House",
       "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054748518-Erfolgreicher-Webseiten-Relaunch----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/webseite-neu-gestalten",
+      "uri": "fileSearchStores/test-test-4t657re3lf6v/files/scraped-1763062835480-KOKOMO-House.txt",
+      "url": "https://www.kokomo.house/blog",
       "images": []
     },
     {
-      "name": "scraped-1763054755798-Erfolgreich-Digitalprojekte-konzipieren--realisier.txt",
-      "displayName": "Erfolgreich Digitalprojekte konzipieren, realisieren und betreiben | NETNODE AG",
+      "name": "scraped-1763062841957-Projects.txt",
+      "displayName": "Projects",
       "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054755798-Erfolgreich-Digitalprojekte-konzipieren--realisier.txt",
-      "url": "https://netnode.ch/de/erfolgreich-digitalporojekte-realisieren-netnode-projektkompass",
+      "uri": "fileSearchStores/test-test-4t657re3lf6v/files/scraped-1763062841957-Projects.txt",
+      "url": "https://www.kokomo.house/projects",
       "images": []
     },
     {
-      "name": "scraped-1763054762799-Vorlage-Content-Marketing-Redaktionsplanung---NETN.txt",
-      "displayName": "Vorlage Content Marketing Redaktionsplanung | NETNODE AG",
+      "name": "scraped-1763062847993-Tags.txt",
+      "displayName": "Tags",
       "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054762799-Vorlage-Content-Marketing-Redaktionsplanung---NETN.txt",
-      "url": "https://netnode.ch/de/vorlage-content-marketing-redaktionsplanung",
+      "uri": "fileSearchStores/test-test-4t657re3lf6v/files/scraped-1763062847993-Tags.txt",
+      "url": "https://www.kokomo.house/tags",
       "images": []
     },
     {
-      "name": "scraped-1763054769663-Online-Marketing-Budget-Plan---NETNODE-AG.txt",
-      "displayName": "Online Marketing Budget Plan | NETNODE AG",
+      "name": "scraped-1763062854918-Mit-1000-Litern-Regenwasser-durch-den-Hitzesommer-.txt",
+      "displayName": "Mit 1000 Litern Regenwasser durch den Hitzesommer 2025",
       "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054769663-Online-Marketing-Budget-Plan---NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/online-marketing-budget-plan",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054776745-Inbound-Marketing-Starter-Guide----NETNODE-AG.txt",
-      "displayName": "Inbound Marketing Starter Guide. | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054776745-Inbound-Marketing-Starter-Guide----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/inbound-marketing-starter-guide",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054783640-Zielgruppen-in-Personas-greifbar-machen---NETNODE-.txt",
-      "displayName": "Zielgruppen in Personas greifbar machen | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054783640-Zielgruppen-in-Personas-greifbar-machen---NETNODE-.txt",
-      "url": "https://netnode.ch/de/persona-package",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054790910-User-Experience-Starter-Guide---NETNODE-AG.txt",
-      "displayName": "User Experience Starter Guide | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054790910-User-Experience-Starter-Guide---NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/user-experience-starter-guide",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054798090-Zehn-Gr-nde-f-r-Drupal----NETNODE-AG.txt",
-      "displayName": "Zehn Gründe für Drupal. | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054798090-Zehn-Gr-nde-f-r-Drupal----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/warum-sie-drupal-nutzen-sollten",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054805269-Wie-gut-ist-Ihre-UX----NETNODE-AG.txt",
-      "displayName": "Wie gut ist Ihre UX? | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054805269-Wie-gut-ist-Ihre-UX----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/user-experience-check-checkliste-zur-selbsteinschaetzung",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054815038-Zehn-Tipps-f-r-eine-erfolgreiche-Newsletter-Kampag.txt",
-      "displayName": "Zehn Tipps für eine erfolgreiche Newsletter-Kampagne | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054815038-Zehn-Tipps-f-r-eine-erfolgreiche-Newsletter-Kampag.txt",
-      "url": "https://netnode.ch/de/strategisches-newsletter-marketing-zehn-tipps-fuer-eine-erfolgreiche-kampagne",
-      "images": []
-    },
-    {
-      "name": "scraped-1763054821881-Online-Marketing-Konzept-Vorlage----NETNODE-AG.txt",
-      "displayName": "Online Marketing Konzept Vorlage. | NETNODE AG",
-      "mimeType": "text/plain",
-      "uri": "fileSearchStores/test-test-d2w8393rxtz9/files/scraped-1763054821881-Online-Marketing-Konzept-Vorlage----NETNODE-AG.txt",
-      "url": "https://netnode.ch/de/online-marketing-konzept-vorlage",
-      "images": []
+      "uri": "fileSearchStores/test-test-4t657re3lf6v/files/scraped-1763062854918-Mit-1000-Litern-Regenwasser-durch-den-Hitzesommer-.txt",
+      "url": "https://www.kokomo.house/tiny-house/mit-1000-litern-regenwasser-durch-den-hitzesommer-2025",
+      "images": [
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183211.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183336.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183235.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183231.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183437.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183344.webp",
+        "https://pub-29ede69a4da644b9b81fa3dd5f8e9d6a.r2.dev/20250708_183332.webp"
+      ]
     }
   ],
-  "createdAt": 1763054828177
+  "createdAt": 1763062861607,
+  "systemInstruction": "Du bist ein freundlicher und hilfsbereiter Assistent.\n\nDeine Eigenschaften:\n- Antworte in einem warmen, einladenden Ton\n- Verwende gelegentlich Emojis, um Freundlichkeit zu zeigen\n- Sei geduldig und ermutigend\n- Erkläre komplexe Themen auf einfache, verständliche Weise\n- Zeige Empathie für die Bedürfnisse des Nutzers\n\nAntworte immer auf Deutsch, es sei denn, der Nutzer wechselt die Sprache."
 }

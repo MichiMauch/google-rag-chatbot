@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, HardDrive, Database, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, HardDrive, Database, Trash2, BarChart3, BarChart } from "lucide-react";
 import toast from "react-hot-toast";
 import StreamingLogModal from "@/components/StreamingLogModal";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 
 interface FileSearchStore {
   name: string;
@@ -33,7 +35,10 @@ type LogEvent =
   | { type: "complete"; deletedCount: number; errorCount: number }
   | { type: "store_deleted"; message: string };
 
+type TabType = "stores" | "analytics";
+
 export default function AdminPage() {
+  const [activeTab, setActiveTab] = useState<TabType>("stores");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StoreStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +184,16 @@ export default function AdminPage() {
     loadStats();
   }, []);
 
+  // Helper function to get chat name from store display name
+  // Store displayName format is: "chatName - displayName"
+  // We need to extract just the chatName part
+  function getChatNameFromStore(storeDisplayName: string): string {
+    // Extract the store name from the full name (format: fileSearchStores/chatName-displayName-xxxx)
+    // But we can also parse it from the displayName which has format: "chatName - displayName"
+    const parts = storeDisplayName.split(' - ');
+    return parts[0]; // Return just the chatName part
+  }
+
   // Auto-scroll logs to bottom
   useEffect(() => {
     if (showDeletionLog && deletionLogs.length > 0) {
@@ -226,8 +241,43 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Verwaltung der File Search Stores</p>
+          <p className="text-gray-600">Verwaltung und Analyse</p>
         </div>
+
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab("stores")}
+              className={`${
+                activeTab === "stores"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+            >
+              <Database className="w-4 h-4" />
+              <span>File Search Stores</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`${
+                activeTab === "analytics"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Chat Analytics</span>
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "analytics" ? (
+          <AnalyticsDashboard />
+        ) : (
+          <>
+            {/* Stores Tab Content */}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -350,18 +400,27 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleDeleteClick(store.name, store.displayName, fileCount)}
-                          disabled={deletingStore === store.name}
-                          className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-1"
-                          title="Store löschen"
-                        >
-                          {deletingStore === store.name ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </button>
+                        <div className="flex items-center justify-end space-x-3">
+                          <Link
+                            href={`/admin/chats/${encodeURIComponent(getChatNameFromStore(store.displayName))}`}
+                            className="text-blue-600 hover:text-blue-900 inline-flex items-center space-x-1"
+                            title="Analytics anzeigen"
+                          >
+                            <BarChart className="w-4 h-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteClick(store.name, store.displayName, fileCount)}
+                            disabled={deletingStore === store.name}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-1"
+                            title="Store löschen"
+                          >
+                            {deletingStore === store.name ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -380,6 +439,8 @@ export default function AdminPage() {
             Aktualisieren
           </button>
         </div>
+          </>
+        )}
       </div>
 
       {/* Confirmation Modal */}

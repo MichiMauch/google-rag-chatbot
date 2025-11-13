@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 import { createPartFromUri, createUserContent } from "@google/genai";
+import { getOrCreateSession, logChatMessage } from "@/lib/analytics";
 
 // Only use gemini-2.5-flash - no fallback to other models
 const MODEL = "gemini-2.5-flash";
@@ -74,14 +75,50 @@ async function generateWithRetry(params: any): Promise<any> {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let sessionId: string | undefined;
+
   try {
-    const { message, fileSearchStoreName, files, systemInstruction } = await request.json();
+    const { message, fileSearchStoreName, files, systemInstruction, chatName, displayName, uploadType, themeId } = await request.json();
 
     if (!message) {
       return NextResponse.json(
         { error: "Keine Nachricht angegeben" },
         { status: 400 }
       );
+    }
+
+    // Get or create session for analytics (only if chatName is provided)
+    if (chatName) {
+      console.log(`[Analytics] Creating session for chatName: ${chatName}, displayName: ${displayName}`);
+      try {
+        sessionId = await getOrCreateSession(chatName, {
+          displayName: displayName || chatName,
+          uploadType: uploadType || "unknown",
+          themeId: themeId || "blue",
+          fileSearchStoreName,
+          systemInstruction,
+        });
+        console.log(`[Analytics] Session created: ${sessionId}`);
+
+        // Log user message
+        await logChatMessage({
+          sessionId,
+          role: "user",
+          content: message,
+        });
+        console.log(`[Analytics] User message logged for session: ${sessionId}`);
+      } catch (analyticsError) {
+        console.error("Analytics error (non-blocking):", analyticsError);
+      }
+    } else {
+      console.warn(`[Analytics] No chatName provided - skipping analytics. Received metadata:`, {
+        chatName,
+        displayName,
+        uploadType,
+        themeId,
+        fileSearchStoreName,
+      });
     }
 
     let response;
@@ -181,6 +218,24 @@ export async function POST(request: NextRequest) {
     // If no grounding metadata: Don't show sources or images
     // (We can't know which files were actually used)
 
+    // Log assistant response
+    if (sessionId) {
+      try {
+        const responseTime = Date.now() - startTime;
+        await logChatMessage({
+          sessionId,
+          role: "assistant",
+          content: text,
+          responseTimeMs: responseTime,
+          modelUsed: MODEL,
+          sourcesUsed: usedFileUris,
+        });
+        console.log(`[Analytics] Assistant response logged for session: ${sessionId}, responseTime: ${responseTime}ms`);
+      } catch (analyticsError) {
+        console.error("Analytics error (non-blocking):", analyticsError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       response: text,
@@ -200,6 +255,24 @@ export async function POST(request: NextRequest) {
       errorMessage = "Ungültige Anfrage. Bitte überprüfe deine Eingabe.";
     } else if (error.message) {
       errorMessage = error.message;
+    }
+
+    // Log error
+    if (sessionId) {
+      try {
+        const responseTime = Date.now() - startTime;
+        await logChatMessage({
+          sessionId,
+          role: "assistant",
+          content: "",
+          responseTimeMs: responseTime,
+          modelUsed: MODEL,
+          hadError: true,
+          errorMessage: errorMessage,
+        });
+      } catch (analyticsError) {
+        console.error("Analytics error (non-blocking):", analyticsError);
+      }
     }
 
     return NextResponse.json(

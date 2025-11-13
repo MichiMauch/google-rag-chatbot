@@ -200,6 +200,10 @@ export default function SimpleChatInterface({
           fileSearchStoreName: chatConfig.fileSearchStoreName,
           files: fileUris,
           systemInstruction: chatConfig.systemInstruction,
+          chatName: chatConfig.chatName,
+          displayName: chatConfig.displayName,
+          uploadType: chatConfig.uploadType,
+          themeId: chatConfig.themeId,
         }),
       });
 
