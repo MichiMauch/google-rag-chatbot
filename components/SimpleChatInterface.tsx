@@ -34,6 +34,7 @@ interface ChatConfig {
     images?: string[];
   }>;
   createdAt: number;
+  systemInstruction?: string;
   allowedDomains?: string[];
 }
 
@@ -198,6 +199,7 @@ export default function SimpleChatInterface({
           message: textToSend,
           fileSearchStoreName: chatConfig.fileSearchStoreName,
           files: fileUris,
+          systemInstruction: chatConfig.systemInstruction,
         }),
       });
 

@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       sitemapUrl,
       sitemapUrls,
       maxPages = MAX_PAGES,
+      systemInstruction,
       allowedDomains,
     } = await request.json();
 
@@ -151,6 +152,7 @@ export async function POST(request: NextRequest) {
               fileSearchStoreName: fileSearchStore.name,
               files: uploadedFiles,
               createdAt: Date.now(),
+              systemInstruction: systemInstruction || undefined,
               allowedDomains: allowedDomains || undefined,
             };
 
@@ -324,6 +326,7 @@ export async function POST(request: NextRequest) {
               fileSearchStoreName: fileSearchStore.name,
               files: uploadedFiles,
               createdAt: Date.now(),
+              systemInstruction: systemInstruction || undefined,
               allowedDomains: allowedDomains || undefined,
             };
 

@@ -21,6 +21,7 @@ interface ChatConfig {
     images?: string[];
   }>;
   createdAt: number;
+  systemInstruction?: string;
 }
 
 export default function ChatPage() {

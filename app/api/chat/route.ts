@@ -75,7 +75,7 @@ async function generateWithRetry(params: any): Promise<any> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, fileSearchStoreName, files } = await request.json();
+    const { message, fileSearchStoreName, files, systemInstruction } = await request.json();
 
     if (!message) {
       return NextResponse.json(
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
 
       response = await generateWithRetry({
         contents: prompt,
+        systemInstruction: systemInstruction || undefined,
         config: {
           temperature: 0.7,
           maxOutputTokens: 8192,
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
       // No File Search Store - regular chat
       response = await generateWithRetry({
         contents: message,
+        systemInstruction: systemInstruction || undefined,
         config: {
           temperature: 0.7,
           maxOutputTokens: 8192,

@@ -2,9 +2,10 @@
 
 import { useState, FormEvent, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, FileText, Globe, Palette, Search } from "lucide-react";
+import { Loader2, FileText, Globe, Palette, Search, Bot } from "lucide-react";
 import { themes } from "@/lib/themes";
 import StreamingLogModal from "./StreamingLogModal";
+import { systemInstructionTemplates } from "@/lib/systemInstructionTemplates";
 
 type UploadType = "documents" | "website";
 
@@ -25,6 +26,8 @@ export default function WizardForm() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [sitemapUrl, setSitemapUrl] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("default");
+  const [systemInstruction, setSystemInstruction] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,6 +123,14 @@ export default function WizardForm() {
     );
   }
 
+  function handleTemplateChange(templateId: string) {
+    setSelectedTemplate(templateId);
+    const template = systemInstructionTemplates.find(t => t.id === templateId);
+    if (template) {
+      setSystemInstruction(template.instruction);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -204,6 +215,7 @@ export default function WizardForm() {
             uploadType,
             themeId: selectedTheme,
             files: uploadedFiles,
+            systemInstruction: systemInstruction || undefined,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
         });
@@ -234,6 +246,7 @@ export default function WizardForm() {
             themeId: selectedTheme,
             sitemapUrls: selectedSitemaps,
             maxPages: 5,
+            systemInstruction: systemInstruction || undefined,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
         });
@@ -418,6 +431,36 @@ export default function WizardForm() {
           />
           <p className="text-xs text-gray-500">
             Dieser Name wird als URL-Pfad verwendet: /chats/{chatName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "chat-name"}
+          </p>
+        </div>
+
+        {/* System Instructions */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-700">
+            <Bot className="inline w-4 h-4 mr-1" />
+            Bot-Persönlichkeit (optional)
+          </label>
+          <select
+            value={selectedTemplate}
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+          >
+            {systemInstructionTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+          <textarea
+            value={systemInstruction}
+            onChange={(e) => setSystemInstruction(e.target.value)}
+            placeholder="Definiere, wie sich der Bot verhalten soll..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+            disabled={loading}
+          />
+          <p className="text-xs text-gray-500">
+            Definiere die Persönlichkeit und Verhaltensweise des Chatbots. Leer lassen für Standard-Verhalten.
           </p>
         </div>
 
