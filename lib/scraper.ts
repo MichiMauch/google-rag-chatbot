@@ -133,11 +133,29 @@ export async function scrapePage(url: string, browser: Browser): Promise<Scraped
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    // Navigate with timeout
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
-    });
+    // Navigate with timeout - use domcontentloaded for faster loading
+    // and fall back if networkidle2 takes too long
+    try {
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000, // Increased to 60s
+      });
+
+      // Wait for network to be idle, but don't fail if it times out
+      try {
+        await page.waitForNetworkIdle({ timeout: 10000 }); // 10s max for network idle
+      } catch {
+        // Network still active, but we can proceed
+        console.log(`Network still active for ${url}, proceeding anyway`);
+      }
+    } catch (error) {
+      // If navigation fails completely, try one more time with just 'load'
+      console.log(`First navigation attempt failed for ${url}, trying with 'load' strategy`);
+      await page.goto(url, {
+        waitUntil: 'load',
+        timeout: 60000,
+      });
+    }
 
     // Wait a bit for dynamic content
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -246,8 +264,25 @@ export async function scrapePage(url: string, browser: Browser): Promise<Scraped
       description: data.description,
       images: data.images,
     };
-  } catch (error) {
-    console.error(`Error scraping ${url}:`, error);
+  } catch (error: any) {
+    const errorMessage = error.message || 'Unknown error';
+    const errorName = error.name || 'Error';
+
+    console.error(`Error scraping ${url}:`, {
+      name: errorName,
+      message: errorMessage,
+      type: error.constructor.name,
+    });
+
+    // Provide more helpful error messages
+    if (errorMessage.includes('Navigation timeout')) {
+      console.error(`Navigation timeout for ${url} - site may be slow or blocking requests`);
+    } else if (errorMessage.includes('net::ERR_NAME_NOT_RESOLVED')) {
+      console.error(`DNS resolution failed for ${url} - check DNS configuration`);
+    } else if (errorMessage.includes('net::ERR_CONNECTION_REFUSED')) {
+      console.error(`Connection refused for ${url} - site may be down or blocking`);
+    }
+
     if (page) {
       await page.close().catch(() => {});
     }
@@ -269,6 +304,10 @@ export async function launchBrowser(): Promise<Browser> {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      // DNS and network optimizations
+      '--dns-prefetch-disable', // Disable DNS prefetching to avoid issues
+      '--disable-features=NetworkService', // Use legacy network stack
+      '--disable-background-networking',
     ],
   });
 }
