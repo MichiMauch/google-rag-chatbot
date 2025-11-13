@@ -11,10 +11,10 @@ import {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatName: string } }
+  { params }: { params: Promise<{ chatName: string }> }
 ) {
   try {
-    const chatName = params.chatName;
+    const { chatName } = await params;
 
     if (!chatName) {
       return NextResponse.json(
