@@ -64,8 +64,14 @@ export async function POST(request: NextRequest) {
                   urlCount: childUrls.length,
                   description: `${childUrls.length} URLs`,
                 });
-              } catch (error) {
+              } catch (error: any) {
                 console.error(`Error parsing child sitemap ${child.url}:`, error);
+                discoveredSitemaps.push({
+                  url: child.url,
+                  type: "urlset",
+                  urlCount: 0,
+                  description: `Fehler: ${error.message || 'Nicht verfügbar'}`,
+                });
               }
             }
           } else {

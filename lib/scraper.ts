@@ -59,8 +59,23 @@ export async function findSitemapUrl(baseUrl: string): Promise<string | null> {
  */
 export async function parseSitemapWithDates(sitemapUrl: string): Promise<Array<{ url: string; date?: Date }>> {
   try {
-    const response = await fetch(sitemapUrl);
+    const response = await fetch(sitemapUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SitemapBot/1.0)',
+        'Accept': 'application/xml, text/xml, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const xml = await response.text();
+
+    if (!xml.trim().startsWith('<')) {
+      console.error(`Invalid XML response from ${sitemapUrl}. First 100 chars:`, xml.substring(0, 100));
+      throw new Error('Response is not valid XML');
+    }
 
     return new Promise((resolve, reject) => {
       parseString(xml, (err, result) => {
