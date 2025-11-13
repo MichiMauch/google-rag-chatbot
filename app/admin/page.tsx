@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, HardDrive, Database, Trash2 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 interface FileSearchStore {
   name: string;
@@ -126,7 +126,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
