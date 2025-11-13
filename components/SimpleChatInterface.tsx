@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, Trash2, Code } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, Trash2, Code, Shield } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -10,6 +10,7 @@ import ImageGallery from "./ImageGallery";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
 import EmbedCodeModal from "./EmbedCodeModal";
+import AllowedDomainsModal from "./AllowedDomainsModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -33,6 +34,7 @@ interface ChatConfig {
     images?: string[];
   }>;
   createdAt: number;
+  allowedDomains?: string[];
 }
 
 interface SimpleChatInterfaceProps {
@@ -126,9 +128,10 @@ function TypedMessage({
 
 export default function SimpleChatInterface({
   chatName,
-  chatConfig,
+  chatConfig: initialChatConfig,
   theme,
 }: SimpleChatInterfaceProps) {
+  const [chatConfig, setChatConfig] = useState<ChatConfig>(initialChatConfig);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -136,6 +139,7 @@ export default function SimpleChatInterface({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
+  const [showDomainsModal, setShowDomainsModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -258,6 +262,19 @@ export default function SimpleChatInterface({
     }
   }
 
+  function handleSaveAllowedDomains(domains: string[]) {
+    const updatedConfig = {
+      ...chatConfig,
+      allowedDomains: domains,
+    };
+
+    // Update state
+    setChatConfig(updatedConfig);
+
+    // Save to localStorage
+    localStorage.setItem(`chat-config-${chatConfig.chatName}`, JSON.stringify(updatedConfig));
+  }
+
   async function handleDelete() {
     if (!chatConfig.fileSearchStoreName) {
       console.error("No File Search Store to delete");
@@ -311,6 +328,14 @@ export default function SimpleChatInterface({
         onClose={() => setShowEmbedModal(false)}
       />
 
+      <AllowedDomainsModal
+        chatName={chatConfig.chatName}
+        currentDomains={chatConfig.allowedDomains}
+        isOpen={showDomainsModal}
+        onClose={() => setShowDomainsModal(false)}
+        onSave={handleSaveAllowedDomains}
+      />
+
       <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
         {/* Header */}
         <div
@@ -329,6 +354,13 @@ export default function SimpleChatInterface({
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowDomainsModal(true)}
+              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+              title="Erlaubte Domains verwalten"
+            >
+              <Shield className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setShowEmbedModal(true)}
               className="p-2 rounded-lg hover:bg-white/20 transition-colors"
