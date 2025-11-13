@@ -16,6 +16,7 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
   const [copied, setCopied] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
+  const [framework, setFramework] = useState<"html" | "nextjs">("html");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -58,7 +59,6 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
   }}
 />`;
 
-  const [framework, setFramework] = useState<"html" | "nextjs">("html");
   const embedCode = framework === "nextjs"
     ? (mode === "inline" ? inlineCodeNextJS : popupCodeNextJS)
     : (mode === "inline" ? inlineCodeHTML : popupCodeHTML);
