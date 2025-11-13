@@ -15,14 +15,16 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
   const [theme, setTheme] = useState("blue");
   const [copied, setCopied] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setBaseUrl(window.location.origin);
+      setIsClient(true);
     }
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isClient) return null;
 
   const inlineCodeHTML = `<!-- Google RAG Chatbot - Inline Mode -->
 <div id="chat-container" style="width: 100%; height: 600px;"></div>
