@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shield, X, Save, Check } from "lucide-react";
 
 interface AllowedDomainsModalProps {
@@ -18,10 +18,18 @@ export default function AllowedDomainsModal({
   onClose,
   onSave,
 }: AllowedDomainsModalProps) {
-  const [domains, setDomains] = useState(
-    currentDomains && currentDomains.length > 0 ? currentDomains.join(", ") : ""
-  );
+  const [domains, setDomains] = useState("");
   const [saved, setSaved] = useState(false);
+
+  // Update domains when modal opens or currentDomains changes
+  useEffect(() => {
+    if (isOpen) {
+      setDomains(
+        currentDomains && currentDomains.length > 0 ? currentDomains.join(", ") : ""
+      );
+      setSaved(false);
+    }
+  }, [isOpen, currentDomains]);
 
   if (!isOpen) return null;
 
