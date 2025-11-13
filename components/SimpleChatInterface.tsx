@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, Trash2 } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, Trash2, Code } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -9,6 +9,7 @@ import SuggestedQuestions from "./SuggestedQuestions";
 import ImageGallery from "./ImageGallery";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
+import EmbedCodeModal from "./EmbedCodeModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -134,6 +135,7 @@ export default function SimpleChatInterface({
   const [latestAssistantId, setLatestAssistantId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -302,9 +304,16 @@ export default function SimpleChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
-      {/* Header */}
-      <div
+    <>
+      <EmbedCodeModal
+        chatName={chatConfig.chatName}
+        isOpen={showEmbedModal}
+        onClose={() => setShowEmbedModal(false)}
+      />
+
+      <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
+        {/* Header */}
+        <div
         className="text-white p-4 flex-shrink-0"
         style={{
           background: `linear-gradient(to right, var(--color-primary), var(--color-primary-dark))`,
@@ -319,18 +328,27 @@ export default function SimpleChatInterface({
                 : "Keine Dokumente geladen"}
             </p>
           </div>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="p-2 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Chat löschen"
-          >
-            {deleting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Trash2 className="w-5 h-5" />
-            )}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowEmbedModal(true)}
+              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+              title="Embed Code generieren"
+            >
+              <Code className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="p-2 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Chat löschen"
+            >
+              {deleting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Trash2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -510,6 +528,7 @@ export default function SimpleChatInterface({
           Drücke Enter zum Senden, Shift+Enter für neue Zeile
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

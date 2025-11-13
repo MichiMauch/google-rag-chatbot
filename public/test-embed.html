@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google RAG Chatbot - Embed Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 1.2rem;
+      margin-bottom: 3rem;
+      opacity: 0.9;
+    }
+
+    .demo-section {
+      background: white;
+      color: #333;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .demo-section h2 {
+      margin-bottom: 1rem;
+      color: #667eea;
+    }
+
+    .demo-section p {
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+
+    .code-block code {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    .inline-demo {
+      width: 100%;
+      height: 600px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .feature-list li {
+      padding: 10px 0;
+      padding-left: 30px;
+      position: relative;
+    }
+
+    .feature-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .button {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .button:hover {
+      background: #5568d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 Google RAG Chatbot</h1>
+    <p class="subtitle">Embedding Widget Test & Demo</p>
+
+    <!-- Popup Mode Demo -->
+    <div class="demo-section">
+      <h2>Mode 1: Popup Widget (Toggle Button)</h2>
+      <p>
+        Ein floating Button unten rechts öffnet den Chat. Perfekt für Websites, die den Chat diskret anbieten möchten.
+      </p>
+
+      <div class="code-block">
+        <code>&lt;script src="http://localhost:3000/widget.js"
+        data-chat-name="your-chat-name"
+        data-mode="popup"
+        data-position="bottom-right"
+        data-theme="blue"&gt;&lt;/script&gt;</code>
+      </div>
+
+      <ul class="feature-list">
+        <li>Minimierbar mit Toggle-Button</li>
+        <li>Unread-Badge für neue Nachrichten</li>
+        <li>Mobile-responsive (Fullscreen auf Mobile)</li>
+        <li>Positionierbar (bottom-right, bottom-left, top-right, top-left)</li>
+      </ul>
+
+      <p style="margin-top: 20px;">
+        <strong>→ Schau unten rechts für den Live-Demo!</strong>
+      </p>
+    </div>
+
+    <!-- Inline Mode Demo -->
+    <div class="demo-section">
+      <h2>Mode 2: Inline Embed (Fixed iframe)</h2>
+      <p>
+        Der Chat wird als fester iframe in einen Container eingebettet. Ideal für dedizierte Chat-Seiten oder Bereiche.
+      </p>
+
+      <div class="code-block">
+        <code>&lt;div id="chat-container"&gt;&lt;/div&gt;
+&lt;script src="http://localhost:3000/widget.js"
+        data-chat-name="your-chat-name"
+        data-mode="inline"
+        data-container="chat-container"
+        data-theme="blue"&gt;&lt;/script&gt;</code>
+      </div>
+
+      <ul class="feature-list">
+        <li>Immer sichtbar</li>
+        <li>Vollständige Kontrolle über Größe und Position</li>
+        <li>Perfekt für dedizierte Chat-Bereiche</li>
+      </ul>
+
+      <div id="inline-chat-container" class="inline-demo"></div>
+    </div>
+
+    <!-- Configuration Options -->
+    <div class="demo-section">
+      <h2>⚙️ Konfigurationsoptionen</h2>
+
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid #e5e7eb;">
+            <th style="text-align: left; padding: 12px;">Attribut</th>
+            <th style="text-align: left; padding: 12px;">Beschreibung</th>
+            <th style="text-align: left; padding: 12px;">Standard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px;"><code>data-chat-name</code></td>
+            <td style="padding: 12px;">Name des Chats (erforderlich)</td>
+            <td style="padding: 12px;">-</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px;"><code>data-mode</code></td>
+            <td style="padding: 12px;">Modus: "popup" oder "inline"</td>
+            <td style="padding: 12px;">popup</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px;"><code>data-theme</code></td>
+            <td style="padding: 12px;">Farbschema: blue, green, purple, orange, pink</td>
+            <td style="padding: 12px;">blue</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px;"><code>data-position</code></td>
+            <td style="padding: 12px;">Position (nur popup): bottom-right, bottom-left, top-right, top-left</td>
+            <td style="padding: 12px;">bottom-right</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px;"><code>data-container</code></td>
+            <td style="padding: 12px;">Container-ID (nur inline)</td>
+            <td style="padding: 12px;">-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Events API -->
+    <div class="demo-section">
+      <h2>🔔 JavaScript Events API</h2>
+      <p>Das Widget sendet Custom Events, die du abfangen kannst:</p>
+
+      <div class="code-block">
+        <code>// Listen for chat events
+window.addEventListener('chatMessage', (event) => {
+  console.log('New chat message:', event.detail);
+});
+
+window.addEventListener('chatOpen', () => {
+  console.log('Chat opened');
+});
+
+window.addEventListener('chatClose', () => {
+  console.log('Chat closed');
+});</code>
+      </div>
+    </div>
+
+    <!-- Getting Started -->
+    <div class="demo-section">
+      <h2>🚀 Getting Started</h2>
+      <p>So bindest du den Chat in deine Website ein:</p>
+
+      <ol style="padding-left: 20px; line-height: 2;">
+        <li>Erstelle einen Chat auf der <a href="/" class="button" style="padding: 6px 12px; font-size: 0.9rem; margin: 0 5px;">Hauptseite</a></li>
+        <li>Kopiere den generierten Embed-Code</li>
+        <li>Füge ihn vor dem schließenden &lt;/body&gt; Tag deiner Website ein</li>
+        <li>Fertig! 🎉</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Inline Mode Script (change "your-chat-name" to an actual chat name) -->
+  <script src="/widget.js"
+          data-chat-name="test-chat"
+          data-mode="inline"
+          data-container="inline-chat-container"
+          data-theme="blue"></script>
+
+  <!-- Popup Mode Script (change "your-chat-name" to an actual chat name) -->
+  <script src="/widget.js"
+          data-chat-name="test-chat"
+          data-mode="popup"
+          data-position="bottom-right"
+          data-theme="purple"></script>
+
+  <!-- Event Listeners Demo -->
+  <script>
+    window.addEventListener('chatMessage', (event) => {
+      console.log('📨 New chat message:', event.detail);
+    });
+
+    window.addEventListener('chatOpen', () => {
+      console.log('✅ Chat opened');
+    });
+
+    window.addEventListener('chatClose', () => {
+      console.log('❌ Chat closed');
+    });
+  </script>
+</body>
+</html>

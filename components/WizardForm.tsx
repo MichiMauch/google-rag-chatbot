@@ -15,6 +15,7 @@ export default function WizardForm() {
   const [selectedTheme, setSelectedTheme] = useState(themes[0].id);
   const [files, setFiles] = useState<File[]>([]);
   const [sitemapUrl, setSitemapUrl] = useState("");
+  const [allowedDomains, setAllowedDomains] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string>("");
@@ -102,6 +103,13 @@ export default function WizardForm() {
 
         // Create chat with uploaded files
         setUploadProgress("Chat wird erstellt...");
+
+        // Parse allowed domains
+        const allowedDomainsArray = allowedDomains
+          .split(",")
+          .map((d) => d.trim())
+          .filter((d) => d.length > 0);
+
         const response = await fetch("/api/create-chat", {
           method: "POST",
           headers: {
@@ -113,6 +121,7 @@ export default function WizardForm() {
             uploadType,
             themeId: selectedTheme,
             files: uploadedFiles,
+            allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
         });
 
@@ -131,6 +140,13 @@ export default function WizardForm() {
       } else {
         // Scrape website from sitemap - ASYNC
         setUploadProgress("Scraping-Job wird gestartet...");
+
+        // Parse allowed domains
+        const allowedDomainsArray = allowedDomains
+          .split(",")
+          .map((d) => d.trim())
+          .filter((d) => d.length > 0);
+
         const response = await fetch("/api/create-chat", {
           method: "POST",
           headers: {
@@ -143,6 +159,7 @@ export default function WizardForm() {
             themeId: selectedTheme,
             sitemapUrl,
             maxPages: 50,
+            allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
         });
 
@@ -339,6 +356,25 @@ export default function WizardForm() {
           </p>
         </div>
       )}
+
+      {/* Allowed Domains for Embedding */}
+      <div className="space-y-2">
+        <label htmlFor="allowedDomains" className="block text-sm font-medium text-gray-700">
+          Erlaubte Domains für Embedding (optional)
+        </label>
+        <input
+          id="allowedDomains"
+          type="text"
+          value={allowedDomains}
+          onChange={(e) => setAllowedDomains(e.target.value)}
+          placeholder="example.com, subdomain.example.com"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+        />
+        <p className="text-xs text-gray-500">
+          Komma-getrennte Liste von Domains, die diesen Chat einbetten dürfen. Leer lassen für keine Einschränkung. Wildcard-Support: *.example.com
+        </p>
+      </div>
 
       {/* Error Message */}
       {error && (

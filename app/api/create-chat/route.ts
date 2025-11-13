@@ -23,7 +23,8 @@ async function processWebsiteScraping(
   themeId: string,
   sitemapUrl: string,
   maxPages: number,
-  fileSearchStore: any
+  fileSearchStore: any,
+  allowedDomains?: string[]
 ) {
   try {
     updateJob(jobId, {
@@ -203,6 +204,7 @@ async function processWebsiteScraping(
       fileSearchStoreName: fileSearchStore.name,
       files: uploadedFiles,
       createdAt: Date.now(),
+      allowedDomains: allowedDomains || undefined,
     };
 
     // Update job as completed
@@ -235,6 +237,7 @@ export async function POST(request: NextRequest) {
       files,
       sitemapUrl,
       maxPages = MAX_PAGES,
+      allowedDomains,
     } = await request.json();
 
     // Validation
@@ -322,6 +325,7 @@ export async function POST(request: NextRequest) {
         fileSearchStoreName: fileSearchStore.name,
         files: uploadedFiles,
         createdAt: Date.now(),
+        allowedDomains: allowedDomains || undefined,
       };
 
       return NextResponse.json({
@@ -353,7 +357,8 @@ export async function POST(request: NextRequest) {
         themeId,
         sitemapUrl,
         maxPages,
-        fileSearchStore
+        fileSearchStore,
+        allowedDomains
       ).catch((error) => {
         console.error(`Background job ${jobId} failed:`, error);
       });
