@@ -3,11 +3,23 @@ import { ai } from "@/lib/gemini";
 
 export async function GET() {
   try {
+    // Check if API key is configured
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      console.error("GOOGLE_AI_API_KEY not configured");
+      return NextResponse.json(
+        { error: "API Key nicht konfiguriert. Bitte GOOGLE_AI_API_KEY in .env.local setzen." },
+        { status: 500 }
+      );
+    }
+
     // List all file search stores
+    console.log("Fetching file search stores...");
     const stores = await ai.fileSearchStores.list();
+    console.log("Stores fetched successfully");
 
     // The API returns data in pageInternal
     const storeList = (stores as any).pageInternal || [];
+    console.log(`Found ${storeList.length} stores`);
 
     let totalFiles = 0;
     let totalSizeBytes = 0;
@@ -34,8 +46,18 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error("Error loading stores:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      cause: error.cause,
+    });
+
     return NextResponse.json(
-      { error: error.message || "Fehler beim Laden der Stores" },
+      {
+        error: error.message || "Fehler beim Laden der Stores",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }
