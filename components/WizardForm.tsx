@@ -2,11 +2,18 @@
 
 import { useState, FormEvent, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, FileText, Globe, Palette } from "lucide-react";
+import { Loader2, FileText, Globe, Palette, Search } from "lucide-react";
 import { themes } from "@/lib/themes";
 import StreamingLogModal from "./StreamingLogModal";
 
 type UploadType = "documents" | "website";
+
+interface SitemapInfo {
+  url: string;
+  type: "index" | "urlset";
+  urlCount?: number;
+  description: string;
+}
 
 export default function WizardForm() {
   const router = useRouter();
@@ -15,10 +22,15 @@ export default function WizardForm() {
   const [chatName, setChatName] = useState("");
   const [selectedTheme, setSelectedTheme] = useState(themes[0].id);
   const [files, setFiles] = useState<File[]>([]);
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [sitemapUrl, setSitemapUrl] = useState("");
   const [allowedDomains, setAllowedDomains] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [discoveringSitemaps, setDiscoveringSitemaps] = useState(false);
+  const [discoveredSitemaps, setDiscoveredSitemaps] = useState<SitemapInfo[]>([]);
+  const [selectedSitemaps, setSelectedSitemaps] = useState<string[]>([]);
 
   // Streaming log state
   const [showLog, setShowLog] = useState(false);
@@ -54,8 +66,58 @@ export default function WizardForm() {
       fileInputRef.current.value = "";
     }
     setFiles([]);
+    setWebsiteUrl("");
     setSitemapUrl("");
+    setDiscoveredSitemaps([]);
+    setSelectedSitemaps([]);
     setError(null);
+  }
+
+  async function handleDiscoverSitemaps() {
+    if (!websiteUrl.trim()) {
+      setError("Bitte gib eine Website-URL ein");
+      return;
+    }
+
+    setError(null);
+    setDiscoveringSitemaps(true);
+    setDiscoveredSitemaps([]);
+    setSelectedSitemaps([]);
+
+    try {
+      const response = await fetch("/api/discover-sitemaps", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ websiteUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Fehler beim Suchen der Sitemaps");
+      }
+
+      const data = await response.json();
+      setDiscoveredSitemaps(data.sitemaps);
+
+      if (data.sitemaps.length === 1) {
+        setSelectedSitemaps([data.sitemaps[0].url]);
+      }
+    } catch (err: any) {
+      console.error("Error discovering sitemaps:", err);
+      setError(err.message || "Fehler beim Suchen der Sitemaps");
+    } finally {
+      setDiscoveringSitemaps(false);
+    }
+  }
+
+  function handleToggleSitemap(url: string) {
+    setSelectedSitemaps((prev) =>
+      prev.includes(url)
+        ? prev.filter((u) => u !== url)
+        : [...prev, url]
+    );
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -76,8 +138,8 @@ export default function WizardForm() {
       return;
     }
 
-    if (uploadType === "website" && !sitemapUrl.trim()) {
-      setError("Bitte gib eine Sitemap-URL ein");
+    if (uploadType === "website" && selectedSitemaps.length === 0) {
+      setError("Bitte wähle mindestens eine Sitemap aus");
       setLoading(false);
       return;
     }
@@ -155,7 +217,6 @@ export default function WizardForm() {
         await processSSEStream(response, chatSlug);
 
       } else {
-        // Website scraping with SSE streaming
         const allowedDomainsArray = allowedDomains
           .split(",")
           .map((d) => d.trim())
@@ -171,7 +232,7 @@ export default function WizardForm() {
             displayName: chatName,
             uploadType,
             themeId: selectedTheme,
-            sitemapUrl,
+            sitemapUrls: selectedSitemaps,
             maxPages: 50,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
@@ -416,23 +477,89 @@ export default function WizardForm() {
             )}
           </div>
         ) : (
-          <div className="space-y-2" key="website-upload">
-            <label htmlFor="sitemapUrl" className="block text-sm font-medium text-gray-700">
-              Sitemap-URL
-            </label>
-            <input
-              id="sitemapUrl"
-              type="url"
-              value={sitemapUrl}
-              onChange={(e) => setSitemapUrl(e.target.value)}
-              placeholder="https://example.com/sitemap.xml"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading}
-              required
-            />
-            <p className="text-xs text-gray-500">
-              Die 50 neuesten Artikel aus der Sitemap werden gescraped
-            </p>
+          <div className="space-y-4" key="website-upload">
+            <div className="space-y-2">
+              <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700">
+                Website-URL
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  id="websiteUrl"
+                  type="url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loading || discoveringSitemaps}
+                />
+                <button
+                  type="button"
+                  onClick={handleDiscoverSitemaps}
+                  disabled={loading || discoveringSitemaps || !websiteUrl.trim()}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                >
+                  {discoveringSitemaps ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Suche...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      <span>Sitemaps suchen</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Gib die Haupt-URL deiner Website ein, um Sitemaps automatisch zu finden
+              </p>
+            </div>
+
+            {discoveredSitemaps.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Gefundene Sitemaps ({discoveredSitemaps.length})
+                </label>
+                <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
+                  {discoveredSitemaps.map((sitemap, index) => (
+                    <label
+                      key={index}
+                      className="flex items-start space-x-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSitemaps.includes(sitemap.url)}
+                        onChange={() => handleToggleSitemap(sitemap.url)}
+                        className="mt-1"
+                        disabled={loading}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {sitemap.url.split("/").pop()}
+                        </div>
+                        <div className="text-xs text-gray-500">{sitemap.description}</div>
+                        <div className="text-xs text-gray-400 truncate mt-1">
+                          {sitemap.url}
+                        </div>
+                      </div>
+                      <span
+                        className={`px-2 py-1 text-xs rounded ${
+                          sitemap.type === "index"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {sitemap.type === "index" ? "Index" : "Urlset"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {selectedSitemaps.length} Sitemap(s) ausgewählt · Die 50 neuesten Artikel werden gescraped
+                </p>
+              </div>
+            )}
           </div>
         )}
 

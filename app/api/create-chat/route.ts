@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 600; // 10 minutes timeout for long scraping processes
 
-const MAX_PAGES = 30; // Reduced from 50 to optimize API usage
+const MAX_PAGES = 5; // For testing
 
 // Event types for streaming
 type LogEvent = {
@@ -29,10 +29,7 @@ async function saveChatConfig(chatConfig: any) {
   const configDir = path.join(process.cwd(), "data", "chat-configs");
   const configPath = path.join(configDir, `${chatConfig.chatName}.json`);
 
-  // Ensure directory exists
   await fs.mkdir(configDir, { recursive: true });
-
-  // Write config file
   await fs.writeFile(configPath, JSON.stringify(chatConfig, null, 2), "utf-8");
   console.log(`Chat config saved to: ${configPath}`);
 }
@@ -46,11 +43,11 @@ export async function POST(request: NextRequest) {
       themeId,
       files,
       sitemapUrl,
+      sitemapUrls,
       maxPages = MAX_PAGES,
       allowedDomains,
     } = await request.json();
 
-    // Validation
     if (!chatName || !displayName || !uploadType || !themeId) {
       return NextResponse.json(
         { error: "Fehlende erforderliche Felder" },
@@ -58,7 +55,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -70,7 +66,6 @@ export async function POST(request: NextRequest) {
         try {
           sendLog({ type: "info", message: `📦 Erstelle File Search Store für: ${displayName}` });
 
-          // Create File Search Store for this chat
           const fileSearchStore = await ai.fileSearchStores.create({
             config: {
               displayName: `${displayName} - ${chatName}`,
@@ -82,7 +77,6 @@ export async function POST(request: NextRequest) {
           let uploadedFiles: any[] = [];
 
           if (uploadType === "documents") {
-            // Files are already uploaded via /api/upload - import them into File Search Store
             if (!files || files.length === 0) {
               sendLog({ type: "error", message: "❌ Keine Dateien angegeben" });
               controller.close();
@@ -94,7 +88,6 @@ export async function POST(request: NextRequest) {
               message: `📄 Importiere ${files.length} Datei(en) in File Search Store...`
             });
 
-            // Import each file into the File Search Store
             for (let i = 0; i < files.length; i++) {
               const file = files[i];
 
@@ -111,7 +104,6 @@ export async function POST(request: NextRequest) {
                   fileName: file.name,
                 });
 
-                // Wait for import operation to complete
                 const maxWaitTime = 60000;
                 const startTime = Date.now();
                 let attempt = 0;
@@ -151,7 +143,6 @@ export async function POST(request: NextRequest) {
 
             sendLog({ type: "info", message: `✅ ${uploadedFiles.length} Datei(en) erfolgreich importiert` });
 
-            // Create chat configuration
             const chatConfig = {
               chatName,
               displayName,
@@ -163,7 +154,6 @@ export async function POST(request: NextRequest) {
               allowedDomains: allowedDomains || undefined,
             };
 
-            // Save config to filesystem
             sendLog({ type: "info", message: "💾 Speichere Chat-Konfiguration..." });
             await saveChatConfig(chatConfig);
 
@@ -176,39 +166,26 @@ export async function POST(request: NextRequest) {
             controller.close();
 
           } else if (uploadType === "website") {
-            // Scrape website from sitemap URL - STREAMED
-            if (!sitemapUrl) {
+            const sitemapsToProcess = sitemapUrls || (sitemapUrl ? [sitemapUrl] : []);
+
+            if (sitemapsToProcess.length === 0) {
               sendLog({ type: "error", message: "❌ Keine Sitemap-URL angegeben" });
               controller.close();
               return;
             }
 
-            sendLog({ type: "info", message: `🔍 Analysiere Sitemap: ${sitemapUrl}` });
+            sendLog({ type: "info", message: `🔍 Analysiere ${sitemapsToProcess.length} Sitemap(s)...` });
 
-            // Parse sitemap with dates
-            let urlsWithDates = await parseSitemapWithDates(sitemapUrl);
+            let urlsWithDates: Array<{ url: string; date?: Date }> = [];
 
-            // Handle sitemap index by recursively fetching child sitemaps
-            if (
-              urlsWithDates.length > 0 &&
-              urlsWithDates[0].url.includes("sitemap") &&
-              urlsWithDates[0].url.endsWith(".xml")
-            ) {
-              sendLog({ type: "info", message: "📑 Sitemap-Index erkannt, verarbeite Kinder..." });
-
-              const allUrlsWithDates: Array<{ url: string; date?: Date }> = [];
-
-              // Fetch first 5 child sitemaps
-              for (const childSitemapUrl of urlsWithDates.slice(0, 5).map(u => u.url)) {
-                const childUrls = await parseSitemapWithDates(childSitemapUrl);
-                allUrlsWithDates.push(...childUrls);
-              }
-              urlsWithDates = allUrlsWithDates;
+            for (const sitemapUrl of sitemapsToProcess) {
+              sendLog({ type: "info", message: `   📄 ${sitemapUrl}` });
+              const urls = await parseSitemapWithDates(sitemapUrl);
+              urlsWithDates.push(...urls);
             }
 
-            sendLog({ type: "info", message: `✅ ${urlsWithDates.length} URLs in Sitemap gefunden` });
+            sendLog({ type: "info", message: `✅ ${urlsWithDates.length} URLs gefunden` });
 
-            // Sort by date (newest first)
             urlsWithDates.sort((a, b) => {
               if (a.date && b.date) {
                 return b.date.getTime() - a.date.getTime();
@@ -220,7 +197,6 @@ export async function POST(request: NextRequest) {
               return 0;
             });
 
-            // Take the newest maxPages articles
             const urlsToScrape = urlsWithDates.slice(0, maxPages).map(u => u.url);
 
             sendLog({
@@ -228,14 +204,12 @@ export async function POST(request: NextRequest) {
               message: `🌐 Scrappe ${urlsToScrape.length} neueste Seiten in Batches...`
             });
 
-            // Split into batches of 10
             const batchSize = 10;
             const batches: string[][] = [];
             for (let i = 0; i < urlsToScrape.length; i += batchSize) {
               batches.push(urlsToScrape.slice(i, i + batchSize));
             }
 
-            // Process each batch
             for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
               const batch = batches[batchIndex];
 
@@ -245,7 +219,6 @@ export async function POST(request: NextRequest) {
                 message: `📦 Batch ${batchIndex + 1}/${batches.length} (${batch.length} Seiten)`
               });
 
-              // Scrape pages in this batch
               const scrapedPages = await scrapeMultiplePages(batch, 3, 1000);
 
               if (scrapedPages.length === 0) {
@@ -258,7 +231,6 @@ export async function POST(request: NextRequest) {
                 message: `   ✓ ${scrapedPages.length} Seiten erfolgreich gescraped`
               });
 
-              // Upload scraped content from this batch
               for (let pageIndex = 0; pageIndex < scrapedPages.length; pageIndex++) {
                 const page = scrapedPages[pageIndex];
                 const totalProcessed = uploadedFiles.length + pageIndex + 1;
@@ -283,7 +255,6 @@ export async function POST(request: NextRequest) {
                 const tempPath = `/tmp/${filename}`;
                 fsSync.writeFileSync(tempPath, buffer);
 
-                // Upload to File Search Store
                 let operation = await ai.fileSearchStores.uploadToFileSearchStore({
                   fileSearchStoreName: fileSearchStore.name!,
                   file: tempPath,
@@ -299,7 +270,6 @@ export async function POST(request: NextRequest) {
 
                 fsSync.unlinkSync(tempPath);
 
-                // Wait for operation to complete
                 const maxWaitTime = 60000;
                 const startTime = Date.now();
                 let attempt = 0;
@@ -346,7 +316,6 @@ export async function POST(request: NextRequest) {
               message: `✨ Alle Batches abgeschlossen! ${uploadedFiles.length} Dateien hochgeladen`
             });
 
-            // Create chat configuration
             const chatConfig = {
               chatName,
               displayName,
@@ -358,7 +327,6 @@ export async function POST(request: NextRequest) {
               allowedDomains: allowedDomains || undefined,
             };
 
-            // Save config to filesystem
             sendLog({ type: "info", message: "💾 Speichere Chat-Konfiguration..." });
             await saveChatConfig(chatConfig);
 

@@ -1,0 +1,180 @@
+{
+  "chatName": "test",
+  "displayName": "test",
+  "uploadType": "website",
+  "themeId": "blue",
+  "fileSearchStoreName": "fileSearchStores/test-test-ji6ucdpijdt2",
+  "files": [
+    {
+      "name": "scraped-1763052928236-NETNODE-an-der-Audience-Success-Conference-in-M-nc.txt",
+      "displayName": "NETNODE an der Audience Success Conference in München 2025 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052928236-NETNODE-an-der-Audience-Success-Conference-in-M-nc.txt",
+      "url": "https://netnode.ch/de/events/audience-success-muenchen-2025",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2025-10%2FASC%2520Munich%25202025_Banner_1_c_ASC.png%3Fitok%3D1neva9vq&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763052935151-Digitaltag-Zentralschweiz-2025---NETNODE-AG.txt",
+      "displayName": "Digitaltag Zentralschweiz 2025 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052935151-Digitaltag-Zentralschweiz-2025---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/event/digitaltag2025",
+      "images": []
+    },
+    {
+      "name": "scraped-1763052942084-Treffen-Sie-NETNODE-auf-der-DrupalCon-Wien-2025---.txt",
+      "displayName": "Treffen Sie NETNODE auf der DrupalCon Wien 2025 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052942084-Treffen-Sie-NETNODE-auf-der-DrupalCon-Wien-2025---.txt",
+      "url": "https://netnode.ch/de/events/drupalcon-vienna-2025",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2025-07%2Fbanner_3600x1295.png%3Fitok%3D9JfD0Yre&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763052948980-AI-Experience-Day---NETNODE-AG.txt",
+      "displayName": "AI Experience Day | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052948980-AI-Experience-Day---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/event/netnode-ai-experience-day",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2025-01%2FExperience%2520Day.png%3Fitok%3D0q6lBZLx&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763052956432-AI-Experience-Day---NETNODE-AG.txt",
+      "displayName": "AI Experience Day | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052956432-AI-Experience-Day---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/event/netnode-ai-experience-day-2",
+      "images": []
+    },
+    {
+      "name": "scraped-1763052963481-Drupal-Mountain-Camp-2025----NETNODE-AG.txt",
+      "displayName": "Drupal Mountain Camp 2025. | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052963481-Drupal-Mountain-Camp-2025----NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/event/drupalmountaincamp2025",
+      "images": []
+    },
+    {
+      "name": "scraped-1763052970239-Splash-Awards-Switzerland---NETNODE-AG.txt",
+      "displayName": "Splash Awards Switzerland | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052970239-Splash-Awards-Switzerland---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/event/splashaward2025",
+      "images": []
+    },
+    {
+      "name": "scraped-1763052977115-AI-Power-entfesseln---So-funktioniert-s----NETNODE.txt",
+      "displayName": "AI-Power entfesseln - So funktioniert's! | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052977115-AI-Power-entfesseln---So-funktioniert-s----NETNODE.txt",
+      "url": "https://netnode.ch/de/webinar/ai-power-entfesseln-christmas-version",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2024-11%2FAI%2520Webinar%2520%25281%2529.png%3Fitok%3D8i3vsbtn&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763052983555-Digitaltag-Zentralschweiz-2024---NETNODE-AG.txt",
+      "displayName": "Digitaltag Zentralschweiz 2024 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052983555-Digitaltag-Zentralschweiz-2024---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/events/digitaltag-zentralschweiz-2024",
+      "images": []
+    },
+    {
+      "name": "scraped-1763052989490-AI-Power-entfesseln---So-funktioniert-s----NETNODE.txt",
+      "displayName": "AI-Power entfesseln - So funktioniert's! | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763052989490-AI-Power-entfesseln---So-funktioniert-s----NETNODE.txt",
+      "url": "https://netnode.ch/de/webinar/ai-gewinnbringend-einsetzen",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2024-11%2FAI%2520Webinar.png%3Fitok%3D-esUfPFP&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763053008126-Drupal-Luzern-Meetup---NETNODE-AG.txt",
+      "displayName": "Drupal Luzern Meetup | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053008126-Drupal-Luzern-Meetup---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/meetup/drupal-meetup-luzern-netnode",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2024-10%2F2024-10-14_16-21-42.jpg%3Fitok%3DJTihnkXW&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763053014066-So-gelingt-dein-Webseiten-Relaunch-im-2025----NETN.txt",
+      "displayName": "So gelingt dein Webseiten Relaunch im 2025. | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053014066-So-gelingt-dein-Webseiten-Relaunch-im-2025----NETN.txt",
+      "url": "https://netnode.ch/de/webinar/relaunch2025",
+      "images": [
+        "https://netnode.ch/_next/image?url=https%3A%2F%2Fnetnode.nodehive.app%2Fsites%2Fdefault%2Ffiles%2Fstyles%2Fwide%2Fpublic%2F2024-10%2Fwebsite-relaunch-oder-refresh.png%3Fitok%3DliW8d37v&w=3840&q=75"
+      ]
+    },
+    {
+      "name": "scraped-1763053021234-Webinar--Wie-kann-ich-meine-Webseite-optimieren---.txt",
+      "displayName": "Webinar: Wie kann ich meine Webseite optimieren? | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053021234-Webinar--Wie-kann-ich-meine-Webseite-optimieren---.txt",
+      "url": "https://netnode.ch/de/erfolgreiche-digitalprojekte-wie-kann-ich-meine-webseite-optimieren",
+      "images": [
+        "https://netnode.nodehive.app/sites/default/files/2024-07/nn-illustration-rocket_0.svg"
+      ]
+    },
+    {
+      "name": "scraped-1763053028403-Bof-Session--Let-s-talk-headless-Drupal----NETNODE.txt",
+      "displayName": "Bof Session: Let‘s talk headless Drupal. | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053028403-Bof-Session--Let-s-talk-headless-Drupal----NETNODE.txt",
+      "url": "https://netnode.ch/de/events/bof-lets-talk-headless-drupal",
+      "images": []
+    },
+    {
+      "name": "scraped-1763053035138-DrupalCon-Barcelona-2024----NETNODE-AG.txt",
+      "displayName": "DrupalCon Barcelona 2024. | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053035138-DrupalCon-Barcelona-2024----NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/node/196",
+      "images": []
+    },
+    {
+      "name": "scraped-1763053041841-Referat--Digitale-Barrierefreiheit--ber-den-Umgest.txt",
+      "displayName": "Referat: Digitale Barrierefreiheit über den Umgestaltungsprozess zu einer barrierefreien Webseite. | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053041841-Referat--Digitale-Barrierefreiheit--ber-den-Umgest.txt",
+      "url": "https://netnode.ch/de/node/184",
+      "images": [
+        "https://netnode.nodehive.app/sites/default/files/2024-08/nn-icon-drupaltutorial.svg"
+      ]
+    },
+    {
+      "name": "scraped-1763053050622-Drupal-Mountain-Camp-2022---NETNODE-AG.txt",
+      "displayName": "Drupal Mountain Camp 2022 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053050622-Drupal-Mountain-Camp-2022---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/node/199",
+      "images": []
+    },
+    {
+      "name": "scraped-1763053056832-20-Jahre-NETNODE---NETNODE-AG.txt",
+      "displayName": "20 Jahre NETNODE | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053056832-20-Jahre-NETNODE---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/node/198",
+      "images": []
+    },
+    {
+      "name": "scraped-1763053063940-Drupal-Mountain-Camp-2024---NETNODE-AG.txt",
+      "displayName": "Drupal Mountain Camp 2024 | NETNODE AG",
+      "mimeType": "text/plain",
+      "uri": "fileSearchStores/test-test-ji6ucdpijdt2/files/scraped-1763053063940-Drupal-Mountain-Camp-2024---NETNODE-AG.txt",
+      "url": "https://netnode.ch/de/node/197",
+      "images": []
+    }
+  ],
+  "createdAt": 1763053070428
+}
