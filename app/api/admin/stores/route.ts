@@ -99,8 +99,7 @@ export async function DELETE(request: NextRequest) {
 
             // List documents in the store (will get first page/batch)
             const documentsIterator = await ai.fileSearchStores.documents.list({
-              parent: storeName,
-              pageSize: 100
+              parent: storeName
             });
 
             // Collect documents from this batch
