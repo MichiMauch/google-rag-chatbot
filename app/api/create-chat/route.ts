@@ -6,6 +6,8 @@ import {
 } from "@/lib/scraper";
 import { createJob, updateJob } from "@/lib/jobStore";
 import { randomUUID } from "crypto";
+import fs from "fs/promises";
+import path from "path";
 
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
@@ -13,6 +15,19 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 600; // 10 minutes timeout for long scraping processes
 
 const MAX_PAGES = 30; // Reduced from 50 to optimize API usage
+
+// Helper function to save chat config to filesystem
+async function saveChatConfig(chatConfig: any) {
+  const configDir = path.join(process.cwd(), "data", "chat-configs");
+  const configPath = path.join(configDir, `${chatConfig.chatName}.json`);
+
+  // Ensure directory exists
+  await fs.mkdir(configDir, { recursive: true });
+
+  // Write config file
+  await fs.writeFile(configPath, JSON.stringify(chatConfig, null, 2), "utf-8");
+  console.log(`Chat config saved to: ${configPath}`);
+}
 
 // Async function to process website scraping in background
 async function processWebsiteScraping(
@@ -207,6 +222,9 @@ async function processWebsiteScraping(
       allowedDomains: allowedDomains || undefined,
     };
 
+    // Save config to filesystem
+    await saveChatConfig(chatConfig);
+
     // Update job as completed
     updateJob(jobId, {
       status: 'completed',
@@ -327,6 +345,9 @@ export async function POST(request: NextRequest) {
         createdAt: Date.now(),
         allowedDomains: allowedDomains || undefined,
       };
+
+      // Save config to filesystem
+      await saveChatConfig(chatConfig);
 
       return NextResponse.json({
         success: true,

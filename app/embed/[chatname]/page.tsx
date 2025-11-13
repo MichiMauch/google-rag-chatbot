@@ -51,11 +51,10 @@ export default function EmbedChatPage() {
           }
         }
 
-        // Load chat configuration from localStorage
-        const storageKey = `chat-config-${chatName}`;
-        const stored = localStorage.getItem(storageKey);
+        // Fetch chat configuration from API
+        const response = await fetch(`/api/chat-config/${chatName}`);
 
-        if (!stored) {
+        if (!response.ok) {
           setError(
             "Chat-Konfiguration nicht gefunden. Bitte stelle sicher, dass der Chat existiert."
           );
@@ -63,7 +62,8 @@ export default function EmbedChatPage() {
           return;
         }
 
-        const parsedConfig: ChatConfig = JSON.parse(stored);
+        const data = await response.json();
+        const parsedConfig: ChatConfig = data.config;
 
         // Validate domain if allowedDomains are set
         if (parsedConfig.allowedDomains && parsedConfig.allowedDomains.length > 0) {

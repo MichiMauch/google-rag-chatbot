@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
+import fs from "fs/promises";
+import path from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +23,16 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
+
+    // Delete config file from filesystem
+    try {
+      const configPath = path.join(process.cwd(), "data", "chat-configs", `${chatName}.json`);
+      await fs.unlink(configPath);
+      console.log(`Config file deleted: ${configPath}`);
+    } catch (error: any) {
+      console.warn(`Could not delete config file for ${chatName}:`, error.message);
+      // Don't fail the request if config file deletion fails
+    }
 
     return NextResponse.json({
       success: true,
