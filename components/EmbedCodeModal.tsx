@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Check, Code, X } from "lucide-react";
 
 interface EmbedCodeModalProps {
@@ -14,10 +14,15 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
   const [position, setPosition] = useState("bottom-right");
   const [theme, setTheme] = useState("blue");
   const [copied, setCopied] = useState(false);
+  const [baseUrl, setBaseUrl] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
 
   if (!isOpen) return null;
-
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   const inlineCodeHTML = `<!-- Google RAG Chatbot - Inline Mode -->
 <div id="chat-container" style="width: 100%; height: 600px;"></div>
