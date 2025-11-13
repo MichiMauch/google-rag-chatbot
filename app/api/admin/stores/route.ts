@@ -54,45 +54,36 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`Deleting File Search Store: ${storeName}`);
 
-    // Step 1: List all files in the store
-    console.log(`Listing files in store: ${storeName}`);
-    let files: any[] = [];
+    // The Google GenAI API doesn't provide a way to list files in a specific store
+    // We need to use a workaround: get the store info which contains file count
+    // Then delete the store with force parameter if available, or return an error
 
-    try {
-      const listResponse = await ai.fileSearchStores.files.list({
-        fileSearchStoreName: storeName,
-      });
+    // First, get store info to see how many files it contains
+    const stores = await ai.fileSearchStores.list();
+    const storeList = (stores as any).pageInternal || [];
+    const targetStore = storeList.find((s: any) => s.name === storeName);
 
-      // The API returns an async iterator
-      for await (const file of listResponse) {
-        files.push(file);
-      }
-
-      console.log(`Found ${files.length} files in store`);
-    } catch (listError: any) {
-      console.error("Error listing files:", listError);
-      // If we can't list files, try to delete anyway
+    if (!targetStore) {
+      throw new Error("Store nicht gefunden");
     }
 
-    // Step 2: Delete all files from the store
-    if (files.length > 0) {
-      console.log(`Deleting ${files.length} files from store...`);
+    const fileCount = parseInt(targetStore.activeDocumentsCount || "0");
+    console.log(`Store contains ${fileCount} files`);
 
-      for (const file of files) {
-        try {
-          console.log(`Deleting file: ${file.name}`);
-          await ai.files.delete({ name: file.name });
-        } catch (fileDeleteError: any) {
-          console.error(`Error deleting file ${file.name}:`, fileDeleteError);
-          // Continue with other files even if one fails
-        }
-      }
-
-      // Wait a bit for deletions to propagate
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    if (fileCount > 0) {
+      // Store is not empty - we cannot delete it directly
+      // The API doesn't provide a way to list/delete files from a store
+      return NextResponse.json(
+        {
+          error: `Der Store enthält noch ${fileCount} Datei(en). Leider bietet die Google GenAI API aktuell keine Möglichkeit, Dateien aus einem File Search Store zu löschen. Du musst warten, bis die Dateien automatisch ablaufen, oder einen neuen Store erstellen.`,
+          code: "STORE_NOT_EMPTY",
+          fileCount: fileCount
+        },
+        { status: 400 }
+      );
     }
 
-    // Step 3: Delete the now-empty store
+    // Store is empty, we can delete it
     console.log(`Deleting empty store: ${storeName}`);
     await ai.fileSearchStores.delete({
       name: storeName,
@@ -103,7 +94,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Store erfolgreich gelöscht",
-      filesDeleted: files.length,
     });
   } catch (error: any) {
     console.error("Error deleting store:", error);
