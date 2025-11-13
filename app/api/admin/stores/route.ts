@@ -41,77 +41,163 @@ export async function GET() {
   }
 }
 
+// Log event types for streaming
+type LogEvent =
+  | { type: "info"; message: string }
+  | { type: "batch_start"; batch: number }
+  | { type: "progress"; current: number; total: number; message: string }
+  | { type: "batch_complete"; batch: number; deleted: number; total: number }
+  | { type: "error"; message: string }
+  | { type: "complete"; deletedCount: number; errorCount: number }
+  | { type: "store_deleted"; message: string };
+
 export async function DELETE(request: NextRequest) {
-  try {
-    const { storeName } = await request.json();
+  const { storeName } = await request.json();
 
-    if (!storeName) {
-      return NextResponse.json(
-        { error: "Store-Name erforderlich" },
-        { status: 400 }
-      );
-    }
-
-    console.log(`Deleting File Search Store: ${storeName}`);
-
-    // The Google GenAI API doesn't provide a way to list files in a specific store
-    // We need to use a workaround: get the store info which contains file count
-    // Then delete the store with force parameter if available, or return an error
-
-    // First, get store info to see how many files it contains
-    const stores = await ai.fileSearchStores.list();
-    const storeList = (stores as any).pageInternal || [];
-    const targetStore = storeList.find((s: any) => s.name === storeName);
-
-    if (!targetStore) {
-      throw new Error("Store nicht gefunden");
-    }
-
-    const fileCount = parseInt(targetStore.activeDocumentsCount || "0");
-    console.log(`Store contains ${fileCount} files`);
-
-    if (fileCount > 0) {
-      // Store is not empty - we cannot delete it directly
-      // The API doesn't provide a way to list/delete files from a store
-      return NextResponse.json(
-        {
-          error: `Der Store enthält noch ${fileCount} Datei(en). Leider bietet die Google GenAI API aktuell keine Möglichkeit, Dateien aus einem File Search Store zu löschen. Du musst warten, bis die Dateien automatisch ablaufen, oder einen neuen Store erstellen.`,
-          code: "STORE_NOT_EMPTY",
-          fileCount: fileCount
-        },
-        { status: 400 }
-      );
-    }
-
-    // Store is empty, we can delete it
-    console.log(`Deleting empty store: ${storeName}`);
-    await ai.fileSearchStores.delete({
-      name: storeName,
-    });
-
-    console.log(`Successfully deleted store: ${storeName}`);
-
-    return NextResponse.json({
-      success: true,
-      message: "Store erfolgreich gelöscht",
-    });
-  } catch (error: any) {
-    console.error("Error deleting store:", error);
-
-    // Check if it's still the "non-empty" error
-    if (error.message?.includes("non-empty") || error.message?.includes("FAILED_PRECONDITION")) {
-      return NextResponse.json(
-        {
-          error: "Store konnte nicht gelöscht werden. Möglicherweise sind noch Dateien vorhanden, die gelöscht werden müssen.",
-          code: "STORE_NOT_EMPTY"
-        },
-        { status: 400 }
-      );
-    }
-
+  if (!storeName) {
     return NextResponse.json(
-      { error: error.message || "Fehler beim Löschen des Stores" },
-      { status: 500 }
+      { error: "Store-Name erforderlich" },
+      { status: 400 }
     );
   }
+
+  // Create a ReadableStream for streaming logs
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendLog = (event: LogEvent) => {
+        const data = `data: ${JSON.stringify(event)}\n\n`;
+        controller.enqueue(encoder.encode(data));
+      };
+
+      try {
+        sendLog({ type: "info", message: `Starte Löschung von Store: ${storeName}` });
+
+        // First, get store info
+        const stores = await ai.fileSearchStores.list();
+        const storeList = (stores as any).pageInternal || [];
+        const targetStore = storeList.find((s: any) => s.name === storeName);
+
+        if (!targetStore) {
+          sendLog({ type: "error", message: "Store nicht gefunden" });
+          controller.close();
+          return;
+        }
+
+        const fileCount = parseInt(targetStore.activeDocumentsCount || "0");
+        sendLog({ type: "info", message: `Store enthält ${fileCount} Dokument(e)` });
+
+        // Delete all documents in the store first (if any)
+        if (fileCount > 0) {
+          let totalDeletedCount = 0;
+          let errorCount = 0;
+          let batchNumber = 1;
+
+          // Keep deleting batches until no more documents are found
+          while (true) {
+            sendLog({ type: "batch_start", batch: batchNumber });
+
+            // List documents in the store (will get first page/batch)
+            const documentsIterator = await ai.fileSearchStores.documents.list({
+              parent: storeName,
+              pageSize: 100
+            });
+
+            // Collect documents from this batch
+            const documents: any[] = [];
+            for await (const doc of documentsIterator) {
+              if (doc.name) {
+                documents.push(doc);
+              }
+            }
+
+            sendLog({ type: "info", message: `Batch ${batchNumber}: ${documents.length} Dokument(e) gefunden` });
+
+            // If no more documents, we're done
+            if (documents.length === 0) {
+              sendLog({ type: "info", message: "Keine weiteren Dokumente zum Löschen" });
+              break;
+            }
+
+            // Delete each document in this batch
+            let batchDeletedCount = 0;
+
+            for (const doc of documents) {
+              const current = totalDeletedCount + batchDeletedCount + 1;
+              try {
+                sendLog({
+                  type: "progress",
+                  current,
+                  total: fileCount,
+                  message: `Lösche: ${doc.displayName || doc.name}`
+                });
+
+                await ai.fileSearchStores.documents.delete({
+                  name: doc.name,
+                  config: { force: true }
+                });
+                batchDeletedCount++;
+              } catch (docError: any) {
+                errorCount++;
+                sendLog({
+                  type: "error",
+                  message: `Fehler beim Löschen von ${doc.displayName || doc.name}: ${docError.message}`
+                });
+              }
+            }
+
+            totalDeletedCount += batchDeletedCount;
+            sendLog({
+              type: "batch_complete",
+              batch: batchNumber,
+              deleted: batchDeletedCount,
+              total: documents.length
+            });
+
+            // If we couldn't delete any in this batch, stop to avoid infinite loop
+            if (batchDeletedCount === 0) {
+              sendLog({ type: "error", message: "Keine Dokumente konnten in diesem Batch gelöscht werden" });
+              break;
+            }
+
+            batchNumber++;
+          }
+
+          sendLog({
+            type: "complete",
+            deletedCount: totalDeletedCount,
+            errorCount
+          });
+
+          if (errorCount > 0) {
+            sendLog({ type: "error", message: `${errorCount} Fehler sind aufgetreten` });
+            controller.close();
+            return;
+          }
+        }
+
+        // Now delete the empty store
+        sendLog({ type: "info", message: "Lösche Store..." });
+        await ai.fileSearchStores.delete({
+          name: storeName,
+        });
+
+        sendLog({ type: "store_deleted", message: "Store erfolgreich gelöscht" });
+        controller.close();
+
+      } catch (error: any) {
+        console.error("Error deleting store:", error);
+        sendLog({ type: "error", message: error.message || "Ein Fehler ist aufgetreten" });
+        controller.close();
+      }
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 }

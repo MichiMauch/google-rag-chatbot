@@ -22,12 +22,28 @@ interface StoreStats {
   usagePercent: number;
 }
 
+// Log event types (matching backend)
+type LogEvent =
+  | { type: "info"; message: string }
+  | { type: "batch_start"; batch: number }
+  | { type: "progress"; current: number; total: number; message: string }
+  | { type: "batch_complete"; batch: number; deleted: number; total: number }
+  | { type: "error"; message: string }
+  | { type: "complete"; deletedCount: number; errorCount: number }
+  | { type: "store_deleted"; message: string };
+
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StoreStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingStore, setDeletingStore] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ name: string; displayName: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ name: string; displayName: string; fileCount: number } | null>(null);
+
+  // Live deletion log state
+  const [showDeletionLog, setShowDeletionLog] = useState(false);
+  const [deletionLogs, setDeletionLogs] = useState<string[]>([]);
+  const [deletionProgress, setDeletionProgress] = useState({ current: 0, total: 0 });
+  const [deletionComplete, setDeletionComplete] = useState(false);
 
   async function loadStats() {
     try {
@@ -49,8 +65,8 @@ export default function AdminPage() {
     }
   }
 
-  function handleDeleteClick(storeName: string, displayName: string) {
-    setConfirmDelete({ name: storeName, displayName });
+  function handleDeleteClick(storeName: string, displayName: string, fileCount: number) {
+    setConfirmDelete({ name: storeName, displayName, fileCount });
   }
 
   async function confirmDeleteStore() {
@@ -59,7 +75,12 @@ export default function AdminPage() {
     const { name: storeName, displayName } = confirmDelete;
     setConfirmDelete(null);
     setDeletingStore(storeName);
-    const loadingToast = toast.loading(`Lösche "${displayName}"...`);
+
+    // Reset and show live log modal
+    setDeletionLogs([]);
+    setDeletionProgress({ current: 0, total: 0 });
+    setDeletionComplete(false);
+    setShowDeletionLog(true);
 
     try {
       const response = await fetch("/api/admin/stores", {
@@ -70,22 +91,82 @@ export default function AdminPage() {
         body: JSON.stringify({ storeName }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Fehler beim Löschen");
+      if (!response.ok || !response.body) {
+        throw new Error("Fehler beim Löschen");
       }
 
-      toast.success(`"${displayName}" wurde erfolgreich gelöscht`, {
-        id: loadingToast,
-      });
+      // Read the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Decode the chunk
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const event: LogEvent = JSON.parse(line.substring(6));
+
+              // Handle different event types
+              switch (event.type) {
+                case "info":
+                  setDeletionLogs((prev) => [...prev, `ℹ️ ${event.message}`]);
+                  break;
+
+                case "batch_start":
+                  setDeletionLogs((prev) => [...prev, `\n📦 Batch ${event.batch} gestartet`]);
+                  break;
+
+                case "progress":
+                  setDeletionProgress({ current: event.current, total: event.total });
+                  setDeletionLogs((prev) => [...prev, `  [${event.current}/${event.total}] ${event.message}`]);
+                  break;
+
+                case "batch_complete":
+                  setDeletionLogs((prev) => [
+                    ...prev,
+                    `✅ Batch ${event.batch} abgeschlossen: ${event.deleted}/${event.total} gelöscht`,
+                  ]);
+                  break;
+
+                case "error":
+                  setDeletionLogs((prev) => [...prev, `❌ ${event.message}`]);
+                  break;
+
+                case "complete":
+                  setDeletionLogs((prev) => [
+                    ...prev,
+                    `\n✨ Löschung abgeschlossen: ${event.deletedCount} Dokument(e) gelöscht`,
+                  ]);
+                  if (event.errorCount > 0) {
+                    setDeletionLogs((prev) => [...prev, `⚠️ ${event.errorCount} Fehler aufgetreten`]);
+                  }
+                  break;
+
+                case "store_deleted":
+                  setDeletionLogs((prev) => [...prev, `🎉 ${event.message}`]);
+                  setDeletionComplete(true);
+                  break;
+              }
+            } catch (e) {
+              console.error("Error parsing event:", e);
+            }
+          }
+        }
+      }
 
       // Reload stats after successful deletion
       await loadStats();
+      toast.success(`"${displayName}" wurde erfolgreich gelöscht`);
     } catch (err: any) {
       console.error("Error deleting store:", err);
+      setDeletionLogs((prev) => [...prev, `\n❌ Fehler: ${err.message}`]);
       toast.error(err.message || "Fehler beim Löschen des Stores", {
-        id: loadingToast,
         duration: 6000,
       });
     } finally {
@@ -96,6 +177,16 @@ export default function AdminPage() {
   useEffect(() => {
     loadStats();
   }, []);
+
+  // Auto-scroll logs to bottom
+  useEffect(() => {
+    if (showDeletionLog && deletionLogs.length > 0) {
+      const logContainer = document.querySelector('.deletion-log-container');
+      if (logContainer) {
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+    }
+  }, [deletionLogs, showDeletionLog]);
 
   if (loading) {
     return (
@@ -259,7 +350,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => handleDeleteClick(store.name, store.displayName)}
+                          onClick={() => handleDeleteClick(store.name, store.displayName, fileCount)}
                           disabled={deletingStore === store.name}
                           className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-1"
                           title="Store löschen"
@@ -299,7 +390,14 @@ export default function AdminPage() {
             </h3>
             <p className="text-gray-600 mb-6">
               Möchtest du <span className="font-semibold">"{confirmDelete.displayName}"</span> wirklich löschen?
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              {confirmDelete.fileCount > 0 && (
+                <span className="block mt-2 text-orange-600 font-medium">
+                  Achtung: Dieser Store enthält {confirmDelete.fileCount} Datei(en), die ebenfalls gelöscht werden.
+                </span>
+              )}
+              <span className="block mt-2 text-sm">
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </span>
             </p>
             <div className="flex space-x-3 justify-end">
               <button
@@ -314,6 +412,71 @@ export default function AdminPage() {
               >
                 Löschen
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Deletion Log Modal */}
+      {showDeletionLog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-xl max-h-[80vh] flex flex-col">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Store wird gelöscht...
+              </h3>
+
+              {/* Progress Bar */}
+              {deletionProgress.total > 0 && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Fortschritt</span>
+                    <span>{deletionProgress.current} / {deletionProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-300"
+                      style={{
+                        width: `${(deletionProgress.current / deletionProgress.total) * 100}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Log Display */}
+            <div className="deletion-log-container flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 font-mono text-sm mb-4">
+              {deletionLogs.map((log, index) => (
+                <div key={index} className="mb-1 whitespace-pre-wrap">
+                  {log}
+                </div>
+              ))}
+              {!deletionComplete && deletionLogs.length > 0 && (
+                <div className="flex items-center space-x-2 text-blue-500 mt-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verarbeitung läuft...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end">
+              {deletionComplete ? (
+                <button
+                  onClick={() => setShowDeletionLog(false)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Schließen
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                >
+                  Bitte warten...
+                </button>
+              )}
             </div>
           </div>
         </div>
