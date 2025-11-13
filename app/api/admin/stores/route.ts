@@ -51,11 +51,29 @@ export async function GET() {
       stack: error.stack,
       name: error.name,
       cause: error.cause,
+      code: error.code,
     });
+
+    // Check for specific error types
+    let errorMessage = error.message || "Fehler beim Laden der Stores";
+
+    if (error.message?.includes("fetch failed")) {
+      errorMessage = "Netzwerk-Fehler: Kann Google AI API nicht erreichen. Bitte prüfe:\n" +
+                     "1. Firewall-Einstellungen auf dem Server\n" +
+                     "2. DNS-Auflösung (generativelanguage.googleapis.com)\n" +
+                     "3. Ausgehende HTTPS-Verbindungen erlaubt";
+      console.error("Network error - cannot reach Google AI API");
+      console.error("Check firewall, DNS, and outbound HTTPS connections");
+    }
+
+    if (error.cause) {
+      console.error("Error cause:", error.cause);
+    }
 
     return NextResponse.json(
       {
-        error: error.message || "Fehler beim Laden der Stores",
+        error: errorMessage,
+        type: error.name,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
