@@ -5,8 +5,9 @@ import { uploadFile, ai } from "@/lib/gemini";
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 3600; // 60 minutes timeout for long scraping processes (100+ pages)
 
-const MAX_PAGES = 50; // Limit to prevent abuse
+const MAX_PAGES = 150; // Limit to prevent abuse - increased for large sites
 
 export async function POST(request: NextRequest) {
   try {

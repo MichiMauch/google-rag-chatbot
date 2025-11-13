@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, HardDrive, Database, Trash2, BarChart3, BarChart } from "lucide-react";
+import { Loader2, HardDrive, Database, Trash2, BarChart3, BarChart, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import StreamingLogModal from "@/components/StreamingLogModal";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import ContentUpdateManager from "@/components/ContentUpdateManager";
+import UpdateHistoryTable from "@/components/UpdateHistoryTable";
 
 interface FileSearchStore {
   name: string;
@@ -35,12 +37,20 @@ type LogEvent =
   | { type: "complete"; deletedCount: number; errorCount: number }
   | { type: "store_deleted"; message: string };
 
-type TabType = "stores" | "analytics";
+type TabType = "stores" | "analytics" | "updates";
+
+interface ChatConfig {
+  chatName: string;
+  displayName: string;
+  uploadType: string;
+  sitemapUrls?: string[];
+}
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>("stores");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StoreStats | null>(null);
+  const [chatConfigs, setChatConfigs] = useState<ChatConfig[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [deletingStore, setDeletingStore] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ name: string; displayName: string; fileCount: number } | null>(null);
@@ -56,13 +66,23 @@ export default function AdminPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/admin/stores");
-      if (!response.ok) {
+      // Load both stores and chat configs in parallel
+      const [storesResponse, configsResponse] = await Promise.all([
+        fetch("/api/admin/stores"),
+        fetch("/api/chat-configs"),
+      ]);
+
+      if (!storesResponse.ok) {
         throw new Error("Fehler beim Laden der Stores");
       }
 
-      const data = await response.json();
-      setStats(data);
+      const storesData = await storesResponse.json();
+      setStats(storesData);
+
+      if (configsResponse.ok) {
+        const configsData = await configsResponse.json();
+        setChatConfigs(configsData);
+      }
     } catch (err: any) {
       console.error("Error loading stats:", err);
       setError(err.message || "Ein Fehler ist aufgetreten");
@@ -269,12 +289,58 @@ export default function AdminPage() {
               <BarChart3 className="w-4 h-4" />
               <span>Chat Analytics</span>
             </button>
+            <button
+              onClick={() => setActiveTab("updates")}
+              className={`${
+                activeTab === "updates"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Content Updates</span>
+            </button>
           </nav>
         </div>
 
         {/* Tab Content */}
         {activeTab === "analytics" ? (
           <AnalyticsDashboard />
+        ) : activeTab === "updates" ? (
+          <>
+            {/* Content Updates Tab */}
+            <div className="space-y-8">
+              {chatConfigs.filter(config => config.sitemapUrls && config.sitemapUrls.length > 0).length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <p className="text-yellow-800">
+                    Keine Chats mit konfigurierten Sitemap URLs gefunden.
+                  </p>
+                  <p className="text-sm text-yellow-600 mt-2">
+                    Nur Website-basierte Chats können automatisch aktualisiert werden.
+                  </p>
+                </div>
+              ) : (
+                chatConfigs
+                  .filter(config => config.sitemapUrls && config.sitemapUrls.length > 0)
+                  .map((config) => (
+                    <div key={config.chatName} className="space-y-6">
+                      <h2 className="text-xl font-semibold text-gray-900">
+                        {config.displayName}
+                      </h2>
+                      {config.sitemapUrls!.map((sitemapUrl, index) => (
+                        <ContentUpdateManager
+                          key={`${config.chatName}-${index}`}
+                          chatName={config.chatName}
+                          sitemapUrl={sitemapUrl}
+                        />
+                      ))}
+                      <UpdateHistoryTable chatName={config.chatName} limit={10} />
+                      <hr className="border-gray-200" />
+                    </div>
+                  ))
+              )}
+            </div>
+          </>
         ) : (
           <>
             {/* Stores Tab Content */}

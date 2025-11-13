@@ -10,7 +10,7 @@ import path from "path";
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 600; // 10 minutes timeout for long scraping processes
+export const maxDuration = 3600; // 60 minutes timeout for long scraping processes (100+ pages)
 
 const MAX_PAGES = 5; // For testing
 
@@ -325,6 +325,7 @@ export async function POST(request: NextRequest) {
               themeId,
               fileSearchStoreName: fileSearchStore.name,
               files: uploadedFiles,
+              sitemapUrls: sitemapsToProcess,
               createdAt: Date.now(),
               systemInstruction: systemInstruction || undefined,
               allowedDomains: allowedDomains || undefined,

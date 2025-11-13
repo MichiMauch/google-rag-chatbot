@@ -84,6 +84,99 @@ export const chatAnalytics = sqliteTable(
   })
 );
 
+// Scraped Pages Table - Tracks all scraped pages for change detection
+export const scrapedPages = sqliteTable(
+  "scraped_pages",
+  {
+    id: text("id").primaryKey(),
+    chatName: text("chat_name").notNull(),
+    url: text("url").notNull(),
+    fileSearchDocumentName: text("file_search_document_name"),
+
+    // Tracking timestamps
+    lastScrapedAt: integer("last_scraped_at").notNull(),
+    sitemapLastMod: integer("sitemap_last_mod"),
+
+    // Metadata
+    title: text("title"),
+    displayName: text("display_name"),
+
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    chatUrlIdx: index("idx_scraped_chat_url").on(table.chatName, table.url),
+    urlIdx: index("idx_scraped_url").on(table.url),
+    chatNameIdx: index("idx_scraped_chat").on(table.chatName),
+  })
+);
+
+// Update History Table - Tracks all content update runs
+export const updateHistory = sqliteTable(
+  "update_history",
+  {
+    id: text("id").primaryKey(),
+    chatName: text("chat_name").notNull(),
+    triggeredBy: text("triggered_by").notNull(), // user ID or "system"
+
+    // Status tracking
+    status: text("status").notNull(), // "pending" | "running" | "completed" | "failed"
+
+    // Statistics
+    totalPages: integer("total_pages").default(0),
+    checkedPages: integer("checked_pages").default(0),
+    updatedPages: integer("updated_pages").default(0),
+    unchangedPages: integer("unchanged_pages").default(0),
+    errorPages: integer("error_pages").default(0),
+
+    // Timing
+    startedAt: integer("started_at"),
+    completedAt: integer("completed_at"),
+    durationMs: integer("duration_ms"),
+
+    // Error tracking
+    error: text("error"),
+
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => ({
+    chatNameIdx: index("idx_updates_chat").on(table.chatName),
+    statusIdx: index("idx_updates_status").on(table.status),
+    createdAtIdx: index("idx_updates_created").on(table.createdAt),
+  })
+);
+
+// Page Update Logs Table - Detailed logs for each page in an update
+export const pageUpdateLogs = sqliteTable(
+  "page_update_logs",
+  {
+    id: text("id").primaryKey(),
+    updateHistoryId: text("update_history_id")
+      .notNull()
+      .references(() => updateHistory.id, { onDelete: "cascade" }),
+
+    // Page info
+    url: text("url").notNull(),
+    pageTitle: text("page_title"),
+
+    // Action taken
+    action: text("action").notNull(), // "created" | "updated" | "unchanged" | "error"
+
+    // Change detection details
+    oldLastMod: integer("old_last_mod"),
+    newLastMod: integer("new_last_mod"),
+
+    // Error tracking
+    errorMessage: text("error_message"),
+
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => ({
+    updateHistoryIdx: index("idx_page_logs_update").on(table.updateHistoryId),
+    actionIdx: index("idx_page_logs_action").on(table.action),
+  })
+);
+
 // TypeScript types
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
@@ -93,3 +186,12 @@ export type NewChatMessage = typeof chatMessages.$inferInsert;
 
 export type ChatAnalytics = typeof chatAnalytics.$inferSelect;
 export type NewChatAnalytics = typeof chatAnalytics.$inferInsert;
+
+export type ScrapedPage = typeof scrapedPages.$inferSelect;
+export type NewScrapedPage = typeof scrapedPages.$inferInsert;
+
+export type UpdateHistory = typeof updateHistory.$inferSelect;
+export type NewUpdateHistory = typeof updateHistory.$inferInsert;
+
+export type PageUpdateLog = typeof pageUpdateLogs.$inferSelect;
+export type NewPageUpdateLog = typeof pageUpdateLogs.$inferInsert;
