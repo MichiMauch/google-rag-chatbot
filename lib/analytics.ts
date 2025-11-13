@@ -91,7 +91,7 @@ export async function logChatMessage(params: {
       modelUsed: params.modelUsed,
       tokensUsed: undefined, // Could be added later if available
       sourcesUsed: params.sourcesUsed ? JSON.stringify(params.sourcesUsed) : undefined,
-      hadError: params.hadError ? 1 : 0,
+      hadError: params.hadError ? true : false,
       errorMessage: params.errorMessage,
     };
 
@@ -345,7 +345,7 @@ export async function getChatStats(chatName: string) {
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
         eq(chatSessions.chatName, chatName),
-        eq(chatMessages.hadError, 1)
+        eq(chatMessages.hadError, true)
       ));
     const errorCount = errorCountResult[0]?.count || 0;
 

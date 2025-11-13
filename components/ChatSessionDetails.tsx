@@ -146,7 +146,7 @@ export default function ChatSessionDetails({ session, defaultExpanded = false }:
                     )}
 
                     {/* Error */}
-                    {message.hadError === 1 && (
+                    {message.hadError && (
                       <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2">
                         <p className="text-xs text-red-800">
                           <span className="font-semibold">Fehler: </span>
