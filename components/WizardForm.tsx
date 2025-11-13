@@ -233,7 +233,7 @@ export default function WizardForm() {
             uploadType,
             themeId: selectedTheme,
             sitemapUrls: selectedSitemaps,
-            maxPages: 50,
+            maxPages: 5,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
         });
@@ -556,7 +556,7 @@ export default function WizardForm() {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500">
-                  {selectedSitemaps.length} Sitemap(s) ausgewählt · Die 50 neuesten Artikel werden gescraped
+                  {selectedSitemaps.length} Sitemap(s) ausgewählt · Die 5 neuesten Artikel werden gescraped (Testing)
                 </p>
               </div>
             )}
