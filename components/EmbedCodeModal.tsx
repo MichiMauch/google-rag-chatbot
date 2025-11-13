@@ -19,22 +19,42 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
-  const inlineCode = `<!-- Google RAG Chatbot - Inline Mode -->
+  const inlineCodeHTML = `<!-- Google RAG Chatbot - Inline Mode -->
 <div id="chat-container" style="width: 100%; height: 600px;"></div>
 <script src="${baseUrl}/widget.js"
         data-chat-name="${chatName}"
         data-mode="inline"
         data-container="chat-container"
-        data-theme="${theme}"></script>`;
+        data-theme="${theme}"
+        defer></script>`;
 
-  const popupCode = `<!-- Google RAG Chatbot - Popup Mode -->
+  const popupCodeHTML = `<!-- Google RAG Chatbot - Popup Mode -->
 <script src="${baseUrl}/widget.js"
         data-chat-name="${chatName}"
         data-mode="popup"
         data-position="${position}"
-        data-theme="${theme}"></script>`;
+        data-theme="${theme}"
+        defer></script>`;
 
-  const embedCode = mode === "inline" ? inlineCode : popupCode;
+  const inlineCodeNextJS = `{/* Google RAG Chatbot - Inline Mode */}
+<div id="chat-container" style={{ width: '100%', height: '600px' }}></div>
+<div
+  dangerouslySetInnerHTML={{
+    __html: \`<script src="${baseUrl}/widget.js" data-chat-name="${chatName}" data-mode="inline" data-container="chat-container" data-theme="${theme}" defer></script>\`,
+  }}
+/>`;
+
+  const popupCodeNextJS = `{/* Google RAG Chatbot - Popup Mode */}
+<div
+  dangerouslySetInnerHTML={{
+    __html: \`<script src="${baseUrl}/widget.js" data-chat-name="${chatName}" data-mode="popup" data-position="${position}" data-theme="${theme}" defer></script>\`,
+  }}
+/>`;
+
+  const [framework, setFramework] = useState<"html" | "nextjs">("html");
+  const embedCode = framework === "nextjs"
+    ? (mode === "inline" ? inlineCodeNextJS : popupCodeNextJS)
+    : (mode === "inline" ? inlineCodeHTML : popupCodeHTML);
 
   async function handleCopy() {
     try {
@@ -76,6 +96,44 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Framework Selection */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Framework
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFramework("html")}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  framework === "html"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div className="font-medium text-gray-900">Standard HTML</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Für normale Websites
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFramework("nextjs")}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  framework === "nextjs"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div className="font-medium text-gray-900">Next.js / React</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Mit dangerouslySetInnerHTML
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Mode Selection */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
@@ -200,12 +258,22 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">📌 Anleitung</h3>
-            <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
-              <li>Kopiere den Code oben</li>
-              <li>Füge ihn vor dem schließenden <code className="bg-blue-100 px-1 rounded">&lt;/body&gt;</code> Tag deiner Website ein</li>
-              <li>Ersetze ggf. die Domain in der URL mit deiner Production-Domain</li>
-              <li>Fertig! 🎉</li>
-            </ol>
+            {framework === "html" ? (
+              <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                <li>Kopiere den Code oben</li>
+                <li>Füge ihn vor dem schließenden <code className="bg-blue-100 px-1 rounded">&lt;/body&gt;</code> Tag ein</li>
+                <li>Ersetze ggf. die Domain in der URL mit deiner Production-Domain</li>
+                <li>Fertig! 🎉</li>
+              </ol>
+            ) : (
+              <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                <li>Kopiere den Code oben</li>
+                <li>Füge ihn in deine <code className="bg-blue-100 px-1 rounded">layout.tsx</code> oder Component ein (vor <code className="bg-blue-100 px-1 rounded">&lt;/body&gt;</code>)</li>
+                <li>Stelle sicher, dass die CSP (Content Security Policy) die Widget-Domain erlaubt</li>
+                <li>Ersetze ggf. die Domain mit deiner Production-Domain</li>
+                <li>Fertig! 🎉</li>
+              </ol>
+            )}
           </div>
 
           {/* Test Link */}
