@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<StoreStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingStore, setDeletingStore] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ name: string; displayName: string } | null>(null);
 
   async function loadStats() {
     try {
@@ -48,11 +49,15 @@ export default function AdminPage() {
     }
   }
 
-  async function deleteStore(storeName: string, displayName: string) {
-    if (!confirm(`Möchtest du "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
-      return;
-    }
+  function handleDeleteClick(storeName: string, displayName: string) {
+    setConfirmDelete({ name: storeName, displayName });
+  }
 
+  async function confirmDeleteStore() {
+    if (!confirmDelete) return;
+
+    const { name: storeName, displayName } = confirmDelete;
+    setConfirmDelete(null);
     setDeletingStore(storeName);
     const loadingToast = toast.loading(`Lösche "${displayName}"...`);
 
@@ -254,7 +259,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => deleteStore(store.name, store.displayName)}
+                          onClick={() => handleDeleteClick(store.name, store.displayName)}
                           disabled={deletingStore === store.name}
                           className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-1"
                           title="Store löschen"
@@ -284,6 +289,35 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Store löschen?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Möchtest du <span className="font-semibold">"{confirmDelete.displayName}"</span> wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </p>
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmDeleteStore}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
