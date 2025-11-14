@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 3600; // 60 minutes timeout for long scraping processes (100+ pages)
 
-const MAX_PAGES = 5; // For testing
+const MAX_PAGES = 100; // Maximum pages to scrape
 
 // Event types for streaming
 type LogEvent = {
