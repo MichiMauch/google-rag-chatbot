@@ -18,14 +18,25 @@ export async function POST(request: NextRequest) {
     console.log(`Deleting File Search Store for chat: ${chatName}`);
     console.log(`Store name: ${fileSearchStoreName}`);
 
-    // Delete the File Search Store
-    await ai.fileSearchStores.delete({
-      name: fileSearchStoreName,
-    });
+    // Try to delete the File Search Store (but don't fail if it doesn't exist)
+    let storeDeleted = false;
+    try {
+      await ai.fileSearchStores.delete({
+        name: fileSearchStoreName,
+      });
+      console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
+      storeDeleted = true;
+    } catch (error: any) {
+      if (error.status === 404 || error.message?.includes("not found")) {
+        console.log(`File Search Store not found (already deleted): ${fileSearchStoreName}`);
+        storeDeleted = true; // Consider it successful if already deleted
+      } else {
+        console.error(`Error deleting File Search Store:`, error);
+        throw error; // Re-throw other errors
+      }
+    }
 
-    console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
-
-    // Delete config from database
+    // Always delete config from database (even if store didn't exist)
     try {
       await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));
       console.log(`Config deleted from database: ${chatName}`);
@@ -36,18 +47,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Chat erfolgreich gelöscht",
+      message: storeDeleted
+        ? "Chat erfolgreich gelöscht"
+        : "Chat-Konfiguration gelöscht (Store existierte bereits nicht mehr)",
     });
   } catch (error: any) {
     console.error("Delete chat error:", error);
-
-    // If store doesn't exist or already deleted, still return success
-    if (error.status === 404 || error.message?.includes("not found")) {
-      return NextResponse.json({
-        success: true,
-        message: "Chat bereits gelöscht oder nicht gefunden",
-      });
-    }
 
     return NextResponse.json(
       { error: error.message || "Fehler beim Löschen des Chats" },
