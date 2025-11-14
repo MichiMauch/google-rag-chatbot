@@ -3,9 +3,10 @@ import { getFeedbackStats } from "@/lib/analytics";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatName: string } }
+  context: { params: Promise<{ chatName: string }> }
 ) {
   try {
+    const params = await context.params;
     const chatName = decodeURIComponent(params.chatName);
     const feedbackStats = await getFeedbackStats(chatName);
 
