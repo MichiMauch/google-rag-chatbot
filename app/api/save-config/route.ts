@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 /**
- * API endpoint to manually save a chat config to filesystem
- * This is useful for migrating existing configs from localStorage
+ * API endpoint to manually save or update a chat config in database
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,21 +17,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const configDir = path.join(process.cwd(), "data", "chat-configs");
-    const configPath = path.join(configDir, `${chatConfig.chatName}.json`);
+    const now = Date.now();
 
-    // Ensure directory exists
-    await fs.mkdir(configDir, { recursive: true });
+    // Check if config already exists
+    const existing = await db
+      .select()
+      .from(chatConfigs)
+      .where(eq(chatConfigs.chatName, chatConfig.chatName))
+      .limit(1);
 
-    // Write config file
-    await fs.writeFile(configPath, JSON.stringify(chatConfig, null, 2), "utf-8");
+    if (existing.length > 0) {
+      // Update existing config
+      await db
+        .update(chatConfigs)
+        .set({
+          displayName: chatConfig.displayName,
+          uploadType: chatConfig.uploadType,
+          themeId: chatConfig.themeId,
+          fileSearchStoreName: chatConfig.fileSearchStoreName || null,
+          files: JSON.stringify(chatConfig.files),
+          sitemapUrls: chatConfig.sitemapUrls ? JSON.stringify(chatConfig.sitemapUrls) : null,
+          allowedDomains: chatConfig.allowedDomains ? JSON.stringify(chatConfig.allowedDomains) : null,
+          systemInstruction: chatConfig.systemInstruction || null,
+          updatedAt: now,
+        })
+        .where(eq(chatConfigs.chatName, chatConfig.chatName));
 
-    console.log(`Chat config saved to: ${configPath}`);
+      console.log(`Chat config updated in database: ${chatConfig.chatName}`);
+    } else {
+      // Insert new config
+      await db.insert(chatConfigs).values({
+        chatName: chatConfig.chatName,
+        displayName: chatConfig.displayName,
+        uploadType: chatConfig.uploadType,
+        themeId: chatConfig.themeId,
+        fileSearchStoreName: chatConfig.fileSearchStoreName || null,
+        files: JSON.stringify(chatConfig.files),
+        sitemapUrls: chatConfig.sitemapUrls ? JSON.stringify(chatConfig.sitemapUrls) : null,
+        allowedDomains: chatConfig.allowedDomains ? JSON.stringify(chatConfig.allowedDomains) : null,
+        systemInstruction: chatConfig.systemInstruction || null,
+        createdAt: chatConfig.createdAt || now,
+        updatedAt: now,
+      });
+
+      console.log(`Chat config saved to database: ${chatConfig.chatName}`);
+    }
 
     return NextResponse.json({
       success: true,
       message: `Config for ${chatConfig.chatName} saved successfully`,
-      path: configPath,
     });
   } catch (error: any) {
     console.error("Save config error:", error);

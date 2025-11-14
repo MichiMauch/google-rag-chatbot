@@ -4,8 +4,8 @@ import {
   parseSitemapWithDates,
   scrapeMultiplePages,
 } from "@/lib/scraper";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
 
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
@@ -24,14 +24,25 @@ type LogEvent = {
   chatConfig?: any;
 };
 
-// Helper function to save chat config to filesystem
+// Helper function to save chat config to database
 async function saveChatConfig(chatConfig: any) {
-  const configDir = path.join(process.cwd(), "data", "chat-configs");
-  const configPath = path.join(configDir, `${chatConfig.chatName}.json`);
+  const now = Date.now();
 
-  await fs.mkdir(configDir, { recursive: true });
-  await fs.writeFile(configPath, JSON.stringify(chatConfig, null, 2), "utf-8");
-  console.log(`Chat config saved to: ${configPath}`);
+  await db.insert(chatConfigs).values({
+    chatName: chatConfig.chatName,
+    displayName: chatConfig.displayName,
+    uploadType: chatConfig.uploadType,
+    themeId: chatConfig.themeId,
+    fileSearchStoreName: chatConfig.fileSearchStoreName || null,
+    files: JSON.stringify(chatConfig.files),
+    sitemapUrls: chatConfig.sitemapUrls ? JSON.stringify(chatConfig.sitemapUrls) : null,
+    allowedDomains: chatConfig.allowedDomains ? JSON.stringify(chatConfig.allowedDomains) : null,
+    systemInstruction: chatConfig.systemInstruction || null,
+    createdAt: chatConfig.createdAt || now,
+    updatedAt: now,
+  });
+
+  console.log(`Chat config saved to database: ${chatConfig.chatName}`);
 }
 
 export async function POST(request: NextRequest) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -10,30 +10,24 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   try {
-    const configDir = path.join(process.cwd(), "data", "chat-configs");
+    // Query all configs from database
+    const dbConfigs = await db.select().from(chatConfigs);
 
-    // Read all files in the config directory
-    const files = await fs.readdir(configDir);
-    const jsonFiles = files.filter(file => file.endsWith(".json"));
+    // Parse JSON fields and reconstruct config objects
+    const configs = dbConfigs.map((dbConfig) => ({
+      chatName: dbConfig.chatName,
+      displayName: dbConfig.displayName,
+      uploadType: dbConfig.uploadType,
+      themeId: dbConfig.themeId,
+      fileSearchStoreName: dbConfig.fileSearchStoreName || undefined,
+      files: JSON.parse(dbConfig.files),
+      sitemapUrls: dbConfig.sitemapUrls ? JSON.parse(dbConfig.sitemapUrls) : undefined,
+      allowedDomains: dbConfig.allowedDomains ? JSON.parse(dbConfig.allowedDomains) : undefined,
+      systemInstruction: dbConfig.systemInstruction || undefined,
+      createdAt: dbConfig.createdAt,
+    }));
 
-    // Read and parse each config file
-    const configs = await Promise.all(
-      jsonFiles.map(async (file) => {
-        try {
-          const filePath = path.join(configDir, file);
-          const content = await fs.readFile(filePath, "utf-8");
-          return JSON.parse(content);
-        } catch (error) {
-          console.error(`Error reading config file ${file}:`, error);
-          return null;
-        }
-      })
-    );
-
-    // Filter out null values (failed reads)
-    const validConfigs = configs.filter(config => config !== null);
-
-    return NextResponse.json(validConfigs);
+    return NextResponse.json(configs);
   } catch (error) {
     console.error("Error loading chat configs:", error);
     return NextResponse.json(

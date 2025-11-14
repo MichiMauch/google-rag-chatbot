@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,14 +25,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
 
-    // Delete config file from filesystem
+    // Delete config from database
     try {
-      const configPath = path.join(process.cwd(), "data", "chat-configs", `${chatName}.json`);
-      await fs.unlink(configPath);
-      console.log(`Config file deleted: ${configPath}`);
+      await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));
+      console.log(`Config deleted from database: ${chatName}`);
     } catch (error: any) {
-      console.warn(`Could not delete config file for ${chatName}:`, error.message);
-      // Don't fail the request if config file deletion fails
+      console.warn(`Could not delete config for ${chatName}:`, error.message);
+      // Don't fail the request if config deletion fails
     }
 
     return NextResponse.json({

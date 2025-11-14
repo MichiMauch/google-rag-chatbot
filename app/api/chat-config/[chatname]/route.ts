@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -9,22 +10,35 @@ export async function GET(
   try {
     const { chatname } = await params;
 
-    // Construct path to chat config file
-    const configPath = path.join(process.cwd(), "data", "chat-configs", `${chatname}.json`);
+    // Query database for chat config
+    const configs = await db
+      .select()
+      .from(chatConfigs)
+      .where(eq(chatConfigs.chatName, chatname))
+      .limit(1);
 
-    // Check if file exists
-    try {
-      await fs.access(configPath);
-    } catch {
+    if (configs.length === 0) {
       return NextResponse.json(
         { error: "Chat configuration not found" },
         { status: 404 }
       );
     }
 
-    // Read and parse config file
-    const configData = await fs.readFile(configPath, "utf-8");
-    const config = JSON.parse(configData);
+    const dbConfig = configs[0];
+
+    // Parse JSON fields and reconstruct config object
+    const config = {
+      chatName: dbConfig.chatName,
+      displayName: dbConfig.displayName,
+      uploadType: dbConfig.uploadType,
+      themeId: dbConfig.themeId,
+      fileSearchStoreName: dbConfig.fileSearchStoreName || undefined,
+      files: JSON.parse(dbConfig.files),
+      sitemapUrls: dbConfig.sitemapUrls ? JSON.parse(dbConfig.sitemapUrls) : undefined,
+      allowedDomains: dbConfig.allowedDomains ? JSON.parse(dbConfig.allowedDomains) : undefined,
+      systemInstruction: dbConfig.systemInstruction || undefined,
+      createdAt: dbConfig.createdAt,
+    };
 
     return NextResponse.json({ config });
   } catch (error) {

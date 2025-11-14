@@ -177,7 +177,35 @@ export const pageUpdateLogs = sqliteTable(
   })
 );
 
+// Chat Configurations Table
+export const chatConfigs = sqliteTable(
+  "chat_configs",
+  {
+    chatName: text("chat_name").primaryKey(),
+    displayName: text("display_name").notNull(),
+    uploadType: text("upload_type").notNull(), // "documents" | "website"
+    themeId: text("theme_id").notNull(),
+    fileSearchStoreName: text("file_search_store_name"),
+
+    // JSON stringified arrays/objects
+    files: text("files").notNull(), // JSON array
+    sitemapUrls: text("sitemap_urls"), // JSON array
+    allowedDomains: text("allowed_domains"), // JSON array
+
+    systemInstruction: text("system_instruction"),
+
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    chatNameIdx: index("idx_configs_chat_name").on(table.chatName),
+  })
+);
+
 // TypeScript types
+export type ChatConfig = typeof chatConfigs.$inferSelect;
+export type NewChatConfig = typeof chatConfigs.$inferInsert;
+
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
 
