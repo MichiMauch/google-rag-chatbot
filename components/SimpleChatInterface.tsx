@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, Code, Shield } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -9,8 +9,6 @@ import SuggestedQuestions from "./SuggestedQuestions";
 import ImageGallery from "./ImageGallery";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
-import EmbedCodeModal from "./EmbedCodeModal";
-import AllowedDomainsModal from "./AllowedDomainsModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -138,8 +136,6 @@ export default function SimpleChatInterface({
   const [loading, setLoading] = useState(false);
   const [latestAssistantId, setLatestAssistantId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [showEmbedModal, setShowEmbedModal] = useState(false);
-  const [showDomainsModal, setShowDomainsModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -267,36 +263,8 @@ export default function SimpleChatInterface({
     }
   }
 
-  function handleSaveAllowedDomains(domains: string[]) {
-    const updatedConfig = {
-      ...chatConfig,
-      allowedDomains: domains,
-    };
-
-    // Update state
-    setChatConfig(updatedConfig);
-
-    // Save to localStorage
-    localStorage.setItem(`chat-config-${chatConfig.chatName}`, JSON.stringify(updatedConfig));
-  }
-
   return (
-    <>
-      <EmbedCodeModal
-        chatName={chatConfig.chatName}
-        isOpen={showEmbedModal}
-        onClose={() => setShowEmbedModal(false)}
-      />
-
-      <AllowedDomainsModal
-        chatName={chatConfig.chatName}
-        currentDomains={chatConfig.allowedDomains}
-        isOpen={showDomainsModal}
-        onClose={() => setShowDomainsModal(false)}
-        onSave={handleSaveAllowedDomains}
-      />
-
-      <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
+    <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
         {/* Header */}
         <div
         className="text-white p-4 flex-shrink-0"
@@ -304,31 +272,13 @@ export default function SimpleChatInterface({
           background: `linear-gradient(to right, var(--color-primary), var(--color-primary-dark))`,
         }}
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">{chatName}</h2>
-            <p className="text-sm opacity-90">
-              {fileUris.length > 0
-                ? `${fileUris.length} Dokument(e) geladen`
-                : "Keine Dokumente geladen"}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowDomainsModal(true)}
-              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
-              title="Erlaubte Domains verwalten"
-            >
-              <Shield className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowEmbedModal(true)}
-              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
-              title="Embed Code generieren"
-            >
-              <Code className="w-5 h-5" />
-            </button>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold">{chatName}</h2>
+          <p className="text-sm opacity-90">
+            {fileUris.length > 0
+              ? `${fileUris.length} Dokument(e) geladen`
+              : "Keine Dokumente geladen"}
+          </p>
         </div>
       </div>
 
@@ -508,7 +458,6 @@ export default function SimpleChatInterface({
           Drücke Enter zum Senden, Shift+Enter für neue Zeile
         </p>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
