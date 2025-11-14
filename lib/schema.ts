@@ -46,10 +46,15 @@ export const chatMessages = sqliteTable(
     // Error tracking
     hadError: integer("had_error", { mode: "boolean" }).default(false),
     errorMessage: text("error_message"),
+
+    // User feedback (thumbs up/down)
+    feedback: integer("feedback"), // 1 = thumbs up, -1 = thumbs down, null = no feedback
+    feedbackAt: integer("feedback_at"), // timestamp when feedback was given
   },
   (table) => ({
     sessionIdIdx: index("idx_messages_session").on(table.sessionId),
     createdAtIdx: index("idx_messages_created").on(table.createdAt),
+    feedbackIdx: index("idx_messages_feedback").on(table.feedback),
   })
 );
 

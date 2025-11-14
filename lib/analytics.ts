@@ -494,3 +494,93 @@ export async function getChatResponseTimes(chatName: string, days = 30) {
     return [];
   }
 }
+
+/**
+ * Get feedback statistics for a specific chat
+ */
+export async function getFeedbackStats(chatName?: string) {
+  try {
+    let query = db
+      .select({
+        thumbsUp: sql<number>`sum(case when ${chatMessages.feedback} = 1 then 1 else 0 end)`,
+        thumbsDown: sql<number>`sum(case when ${chatMessages.feedback} = -1 then 1 else 0 end)`,
+        totalFeedback: sql<number>`sum(case when ${chatMessages.feedback} IS NOT NULL then 1 else 0 end)`,
+      })
+      .from(chatMessages)
+      .where(eq(chatMessages.role, "assistant"));
+
+    if (chatName) {
+      query = db
+        .select({
+          thumbsUp: sql<number>`sum(case when ${chatMessages.feedback} = 1 then 1 else 0 end)`,
+          thumbsDown: sql<number>`sum(case when ${chatMessages.feedback} = -1 then 1 else 0 end)`,
+          totalFeedback: sql<number>`sum(case when ${chatMessages.feedback} IS NOT NULL then 1 else 0 end)`,
+        })
+        .from(chatMessages)
+        .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+        .where(and(
+          eq(chatSessions.chatName, chatName),
+          eq(chatMessages.role, "assistant")
+        ));
+    }
+
+    const result = await query;
+    const stats = result[0];
+
+    const thumbsUp = Number(stats?.thumbsUp) || 0;
+    const thumbsDown = Number(stats?.thumbsDown) || 0;
+    const totalFeedback = Number(stats?.totalFeedback) || 0;
+
+    // Calculate satisfaction score (percentage of positive feedback)
+    const satisfactionScore = totalFeedback > 0
+      ? Math.round((thumbsUp / totalFeedback) * 100)
+      : 0;
+
+    return {
+      thumbsUp,
+      thumbsDown,
+      totalFeedback,
+      satisfactionScore,
+    };
+  } catch (error) {
+    console.error("Error in getFeedbackStats:", error);
+    return {
+      thumbsUp: 0,
+      thumbsDown: 0,
+      totalFeedback: 0,
+      satisfactionScore: 0,
+    };
+  }
+}
+
+/**
+ * Get messages with feedback for a specific chat
+ */
+export async function getMessagesWithFeedback(chatName: string, limit = 50) {
+  try {
+    const result = await db
+      .select({
+        messageId: chatMessages.id,
+        sessionId: chatMessages.sessionId,
+        content: chatMessages.content,
+        feedback: chatMessages.feedback,
+        feedbackAt: chatMessages.feedbackAt,
+        createdAt: chatMessages.createdAt,
+        responseTimeMs: chatMessages.responseTimeMs,
+      })
+      .from(chatMessages)
+      .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+      .where(and(
+        eq(chatSessions.chatName, chatName),
+        eq(chatMessages.role, "assistant"),
+        sql`${chatMessages.feedback} IS NOT NULL`
+      ))
+      .orderBy(desc(chatMessages.feedbackAt))
+      .limit(limit);
+
+    return result;
+  } catch (error) {
+    console.error("Error in getMessagesWithFeedback:", error);
+    return [];
+  }
+}
