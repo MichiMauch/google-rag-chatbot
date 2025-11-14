@@ -340,9 +340,13 @@ export default function SimpleChatInterface({
   const fileUris = chatConfig.files;
 
   const scrollToLastUserMessage = () => {
-    lastUserMessageRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start" // Scroll to top of the element
+    // Wait for DOM to fully render before scrolling
+    requestAnimationFrame(() => {
+      lastUserMessageRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start", // Scroll to top of the element
+        inline: "nearest"
+      });
     });
   };
 
