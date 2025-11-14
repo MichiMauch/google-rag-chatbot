@@ -347,15 +347,22 @@ export default function SimpleChatInterface({
         const container = messagesContainerRef.current;
         const element = lastUserMessageRef.current;
 
-        // Get the element's position relative to the container
-        const offsetTop = element.offsetTop;
+        // Get positions using getBoundingClientRect for accurate positioning
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+
+        // Calculate the distance from container top to element top
+        const relativeTop = elementRect.top - containerRect.top;
+
+        // Add current scroll position to get absolute scroll position
+        const targetScrollTop = container.scrollTop + relativeTop;
 
         // Get container's padding-top to position exactly at top
         const computedStyle = window.getComputedStyle(container);
         const paddingTop = parseInt(computedStyle.paddingTop, 10);
 
         // Scroll to position - accounting for padding positions message at viewport top
-        container.scrollTop = offsetTop - paddingTop;
+        container.scrollTop = targetScrollTop - paddingTop;
       }
     });
   };
