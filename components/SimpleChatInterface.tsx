@@ -335,6 +335,7 @@ export default function SimpleChatInterface({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const fileUris = chatConfig.files;
@@ -342,11 +343,20 @@ export default function SimpleChatInterface({
   const scrollToLastUserMessage = () => {
     // Wait for DOM to fully render before scrolling
     requestAnimationFrame(() => {
-      lastUserMessageRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start", // Scroll to top of the element
-        inline: "nearest"
-      });
+      if (lastUserMessageRef.current && messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        const element = lastUserMessageRef.current;
+
+        // Get the element's position relative to the container
+        const offsetTop = element.offsetTop;
+
+        // Get container's padding-top to position exactly at top
+        const computedStyle = window.getComputedStyle(container);
+        const paddingTop = parseInt(computedStyle.paddingTop, 10);
+
+        // Scroll to position - accounting for padding positions message at viewport top
+        container.scrollTop = offsetTop - paddingTop;
+      }
     });
   };
 
@@ -525,7 +535,11 @@ export default function SimpleChatInterface({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6"
+          style={{ scrollBehavior: 'smooth' }}
+        >
           <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
             {messages.length === 0 ? (
               <div className="space-y-6">
