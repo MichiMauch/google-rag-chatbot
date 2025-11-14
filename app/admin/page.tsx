@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, HardDrive, Database, Trash2, BarChart3, BarChart, RefreshCw } from "lucide-react";
+import { Loader2, HardDrive, Database, Trash2, BarChart3, BarChart, RefreshCw, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import StreamingLogModal from "@/components/StreamingLogModal";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
@@ -424,6 +424,15 @@ export default function AdminPage() {
                             title="Analytics anzeigen"
                           >
                             <BarChart className="w-4 h-4" />
+                          </Link>
+                          <Link
+                            href={`/chats/${encodeURIComponent(getChatNameFromStore(store.displayName))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-900 inline-flex items-center space-x-1"
+                            title="Chat öffnen"
+                          >
+                            <MessageSquare className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDeleteClick(store.name, store.displayName, fileCount)}
