@@ -163,41 +163,73 @@ function SourcesSidebar({
                     href={source.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-start space-x-3 p-3 rounded-lg transition-colors"
+                    className="block rounded-lg overflow-hidden transition-all hover:shadow-md"
                     style={{
                       backgroundColor: "var(--color-background)",
                     }}
                   >
-                    <FileText
-                      className="w-4 h-4 flex-shrink-0 mt-0.5"
-                      style={{ color: "var(--color-primary)" }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium break-words" style={{ color: "var(--color-text)" }}>
-                        {source.displayName}
-                      </p>
-                      <div className="flex items-center mt-1">
-                        <span className="text-xs" style={{ color: "var(--color-text-light)" }}>
-                          Link öffnen
-                        </span>
-                        <ChevronRight className="w-3 h-3 ml-1" style={{ color: "var(--color-text-light)" }} />
+                    {source.image && (
+                      <div className="relative w-full h-32 bg-gray-100">
+                        <img
+                          src={source.image}
+                          alt={source.displayName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <div className="flex items-start space-x-2">
+                        {!source.image && (
+                          <FileText
+                            className="w-4 h-4 flex-shrink-0 mt-0.5"
+                            style={{ color: "var(--color-primary)" }}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium break-words line-clamp-2" style={{ color: "var(--color-text)" }}>
+                            {source.displayName}
+                          </p>
+                          <div className="flex items-center mt-1">
+                            <span className="text-xs" style={{ color: "var(--color-text-light)" }}>
+                              Link öffnen
+                            </span>
+                            <ChevronRight className="w-3 h-3 ml-1" style={{ color: "var(--color-text-light)" }} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </a>
                 ) : (
                   <div
-                    className="flex items-start space-x-3 p-3 rounded-lg"
+                    className="block rounded-lg overflow-hidden"
                     style={{
                       backgroundColor: "var(--color-background)",
                     }}
                   >
-                    <FileText
-                      className="w-4 h-4 flex-shrink-0 mt-0.5"
-                      style={{ color: "var(--color-primary)" }}
-                    />
-                    <p className="text-sm font-medium break-words flex-1" style={{ color: "var(--color-text)" }}>
-                      {source.displayName}
-                    </p>
+                    {source.image && (
+                      <div className="relative w-full h-32 bg-gray-100">
+                        <img
+                          src={source.image}
+                          alt={source.displayName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <div className="flex items-start space-x-2">
+                        {!source.image && (
+                          <FileText
+                            className="w-4 h-4 flex-shrink-0 mt-0.5"
+                            style={{ color: "var(--color-primary)" }}
+                          />
+                        )}
+                        <p className="text-sm font-medium break-words flex-1 line-clamp-2" style={{ color: "var(--color-text)" }}>
+                          {source.displayName}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -340,10 +372,11 @@ export default function SimpleChatInterface({
       if (data.usedFileUris && data.usedFileUris.length > 0) {
         const usedFiles = fileUris.filter((f) => data.usedFileUris.includes(f.uri));
 
-        // Extract sources
+        // Extract sources with teaser images
         sources = usedFiles.map((f) => ({
           displayName: f.displayName || f.name.split("/").pop() || f.name,
           url: f.url,
+          image: f.images && f.images.length > 0 ? f.images[0] : undefined,
         }));
 
         // Update sidebar sources (add unique sources only)

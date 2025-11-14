@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 export interface Source {
   displayName: string;
   url?: string; // Only present for scraped websites
+  image?: string; // Teaser image URL
 }
 
 export interface ChatSession {
