@@ -20,6 +20,11 @@ import {
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -88,6 +93,18 @@ interface PopularQuestion {
   count: number;
 }
 
+interface TemporalData {
+  weekdayData: { weekday: string; count: number }[];
+  hourData: { hour: number; count: number }[];
+  heatmapData: {
+    weekday: number;
+    weekdayLabel: string;
+    hours: { hour: number; count: number }[];
+  }[];
+  timeOfDayData: { period: string; count: number }[];
+  totalMessages: number;
+}
+
 interface ChatConfig {
   chatName: string;
   displayName: string;
@@ -118,7 +135,7 @@ export default function ChatDashboardPage() {
 
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabType>(
-    (tabParam === "settings" ? "settings" : "analytics") as TabType
+    (tabParam === "settings" ? "settings" : tabParam === "temporal" ? "temporal" : "analytics") as TabType
   );
 
   const [loading, setLoading] = useState(true);
@@ -132,6 +149,7 @@ export default function ChatDashboardPage() {
   const [responseTimes, setResponseTimes] = useState<ResponseTime[]>([]);
   const [popularQuestions, setPopularQuestions] = useState<PopularQuestion[]>([]);
   const [chatConfig, setChatConfig] = useState<ChatConfig | null>(null);
+  const [temporalData, setTemporalData] = useState<TemporalData | null>(null);
 
   // Update URL when tab changes
   const handleTabChange = (tab: TabType) => {
@@ -150,24 +168,26 @@ export default function ChatDashboardPage() {
         setError(null);
 
         // Fetch all data in parallel
-        const [statsRes, feedbackRes, sessionsRes, chartDataRes, configRes] = await Promise.all([
+        const [statsRes, feedbackRes, sessionsRes, chartDataRes, configRes, temporalRes] = await Promise.all([
           fetch(`/api/analytics/chat/${chatName}/stats`),
           fetch(`/api/analytics/chat/${chatName}/feedback`),
           fetch(`/api/analytics/chat/${chatName}/sessions?limit=50`),
           fetch(`/api/analytics/chat/${chatName}/chart-data?days=30`),
           fetch(`/api/chat-config/${chatName}`),
+          fetch(`/api/analytics/chat/${chatName}/temporal?days=30`),
         ]);
 
-        if (!statsRes.ok || !feedbackRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok) {
+        if (!statsRes.ok || !feedbackRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok || !temporalRes.ok) {
           throw new Error("Fehler beim Laden der Chat-Daten");
         }
 
-        const [statsData, feedbackData, sessionsData, chartData, configData] = await Promise.all([
+        const [statsData, feedbackData, sessionsData, chartData, configData, temporalDataResult] = await Promise.all([
           statsRes.json(),
           feedbackRes.json(),
           sessionsRes.json(),
           chartDataRes.json(),
           configRes.json(),
+          temporalRes.json(),
         ]);
 
         setStats(statsData);
@@ -177,6 +197,7 @@ export default function ChatDashboardPage() {
         setResponseTimes(chartData.responseTimes);
         setPopularQuestions(chartData.popularQuestions);
         setChatConfig(configData.config);
+        setTemporalData(temporalDataResult);
       } catch (err: any) {
         console.error("Error loading chat data:", err);
         setError(err.message || "Ein Fehler ist aufgetreten");
@@ -272,6 +293,17 @@ export default function ChatDashboardPage() {
               <span>Analytics</span>
             </button>
             <button
+              onClick={() => handleTabChange("temporal")}
+              className={`${
+                activeTab === "temporal"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Zeitliche Muster</span>
+            </button>
+            <button
               onClick={() => handleTabChange("settings")}
               className={`${
                 activeTab === "settings"
@@ -292,6 +324,147 @@ export default function ChatDashboardPage() {
             initialConfig={chatConfig}
             onConfigUpdate={handleConfigUpdate}
           />
+        ) : activeTab === "temporal" ? (
+          <>
+            {temporalData && temporalData.totalMessages > 0 ? (
+              <>
+                {/* Temporal Analytics Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Weekday Chart */}
+                  {temporalData.weekdayData && temporalData.weekdayData.length > 0 && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <BarChart3 className="w-5 h-5" />
+                        <span>Aktivität nach Wochentag</span>
+                      </h2>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={temporalData.weekdayData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="weekday" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#3b82f6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* Time of Day Pie Chart */}
+                  {temporalData.timeOfDayData && temporalData.timeOfDayData.length > 0 && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <Clock className="w-5 h-5" />
+                        <span>Aktivität nach Tageszeit</span>
+                      </h2>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={temporalData.timeOfDayData}
+                            dataKey="count"
+                            nameKey="period"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            label
+                          >
+                            {temporalData.timeOfDayData.map((entry, index) => {
+                              const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+                              return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                            })}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                {/* Hour Chart - Full Width */}
+                {temporalData.hourData && temporalData.hourData.length > 0 && (
+                  <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <Activity className="w-5 h-5" />
+                      <span>Aktivität nach Stunde</span>
+                    </h2>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={temporalData.hourData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="hour" label={{ value: 'Stunde', position: 'insideBottom', offset: -5 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#10b981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Heatmap: Weekday x Hour */}
+                {temporalData.heatmapData && temporalData.heatmapData.length > 0 && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Heatmap: Wochentag × Stunde</span>
+                    </h2>
+                    <div className="overflow-x-auto">
+                      <div className="min-w-max">
+                        {/* Hour labels */}
+                        <div className="flex mb-1">
+                          <div className="w-16"></div>
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <div key={i} className="w-8 text-center text-xs text-gray-600">
+                              {i}
+                            </div>
+                          ))}
+                        </div>
+                        {/* Heatmap rows */}
+                        {temporalData.heatmapData.map((dayData) => {
+                          const maxCount = Math.max(...dayData.hours.map(h => h.count), 1);
+                          return (
+                            <div key={dayData.weekday} className="flex mb-1">
+                              <div className="w-16 text-sm text-gray-700 font-medium flex items-center">
+                                {dayData.weekdayLabel}
+                              </div>
+                              {dayData.hours.map((hourData) => {
+                                const intensity = hourData.count / maxCount;
+                                const bgColor = hourData.count === 0
+                                  ? 'bg-gray-100'
+                                  : `bg-blue-${Math.ceil(intensity * 5) * 100}`;
+                                return (
+                                  <div
+                                    key={hourData.hour}
+                                    className={`w-8 h-8 m-0.5 rounded ${bgColor} flex items-center justify-center text-xs font-semibold`}
+                                    style={{
+                                      backgroundColor: hourData.count === 0
+                                        ? '#f3f4f6'
+                                        : `rgba(59, 130, 246, ${0.2 + intensity * 0.8})`
+                                    }}
+                                    title={`${dayData.weekdayLabel} ${hourData.hour}:00 - ${hourData.count} Fragen`}
+                                  >
+                                    {hourData.count > 0 && (
+                                      <span className="text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                        {hourData.count}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <p className="text-gray-500 text-sm text-center py-8">
+                  Keine Daten für zeitliche Muster verfügbar (letzte 30 Tage)
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <>
             {/* Stats Cards */}
