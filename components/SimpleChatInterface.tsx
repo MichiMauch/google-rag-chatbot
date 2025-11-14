@@ -334,17 +334,24 @@ export default function SimpleChatInterface({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const fileUris = chatConfig.files;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToLastUserMessage = () => {
+    lastUserMessageRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start" // Scroll to top of the element
+    });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll when a new user message is added
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role === "user") {
+      scrollToLastUserMessage();
+    }
   }, [messages]);
 
   // Load messages from localStorage on mount
@@ -551,9 +558,14 @@ export default function SimpleChatInterface({
                 latestAssistantId !== null &&
                 !loading;
 
+              const isLastUserMessage =
+                message.role === "user" &&
+                index === messages.length - 1;
+
               return (
                 <div
                   key={index}
+                  ref={isLastUserMessage ? lastUserMessageRef : null}
                   className={`flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
@@ -650,8 +662,6 @@ export default function SimpleChatInterface({
                 </div>
               </div>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
         </div>
 
