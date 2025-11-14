@@ -219,10 +219,11 @@ export async function POST(request: NextRequest) {
     // (We can't know which files were actually used)
 
     // Log assistant response
+    let messageId: string | null = null;
     if (sessionId) {
       try {
         const responseTime = Date.now() - startTime;
-        await logChatMessage({
+        messageId = await logChatMessage({
           sessionId,
           role: "assistant",
           content: text,
@@ -230,7 +231,7 @@ export async function POST(request: NextRequest) {
           modelUsed: MODEL,
           sourcesUsed: usedFileUris,
         });
-        console.log(`[Analytics] Assistant response logged for session: ${sessionId}, responseTime: ${responseTime}ms`);
+        console.log(`[Analytics] Assistant response logged for session: ${sessionId}, responseTime: ${responseTime}ms, messageId: ${messageId}`);
       } catch (analyticsError) {
         console.error("Analytics error (non-blocking):", analyticsError);
       }
@@ -240,6 +241,7 @@ export async function POST(request: NextRequest) {
       success: true,
       response: text,
       usedFileUris,
+      messageId,
     });
   } catch (error: any) {
     console.error("Chat error:", error);

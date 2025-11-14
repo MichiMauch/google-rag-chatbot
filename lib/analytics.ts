@@ -77,7 +77,7 @@ export async function logChatMessage(params: {
   sourcesUsed?: string[];
   hadError?: boolean;
   errorMessage?: string;
-}): Promise<void> {
+}): Promise<string | null> {
   try {
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
@@ -99,9 +99,13 @@ export async function logChatMessage(params: {
 
     // Update session stats
     await updateSessionStats(params.sessionId, params.role);
+
+    // Return the message ID
+    return messageId;
   } catch (error) {
     console.error("Error in logChatMessage:", error);
     // Don't throw - logging should not break the chat
+    return null;
   }
 }
 

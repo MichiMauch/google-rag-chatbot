@@ -9,12 +9,15 @@ import SuggestedQuestions from "./SuggestedQuestions";
 import ImageGallery from "./ImageGallery";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
+import FeedbackButtons from "./FeedbackButtons";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
   images?: string[];
+  messageId?: string;
+  feedback?: 1 | -1 | null;
 }
 
 interface ChatConfig {
@@ -473,15 +476,16 @@ export default function SimpleChatInterface({
         }
       }
 
-      const messageId = Date.now().toString();
       const assistantMessage: Message = {
         role: "assistant",
         content: data.response,
+        messageId: data.messageId || undefined,
+        feedback: null,
         sources: sources,
         images: images,
       };
 
-      setLatestAssistantId(messageId);
+      setLatestAssistantId(Date.now().toString());
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       const errorMessage: Message = {
@@ -651,6 +655,17 @@ export default function SimpleChatInterface({
                         {message.images && message.images.length > 0 && (
                           <ImageGallery images={message.images} maxDisplay={4} />
                         )}
+                        <FeedbackButtons
+                          messageId={message.messageId}
+                          initialFeedback={message.feedback}
+                          onFeedbackGiven={(feedback) => {
+                            setMessages((prev) =>
+                              prev.map((m) =>
+                                m.messageId === message.messageId ? { ...m, feedback } : m
+                              )
+                            );
+                          }}
+                        />
                       </div>
                     )
                   ) : (

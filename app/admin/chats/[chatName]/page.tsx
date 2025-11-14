@@ -13,6 +13,9 @@ import {
   Activity,
   Settings,
   BarChart3,
+  ThumbsUp,
+  ThumbsDown,
+  Smile,
 } from "lucide-react";
 import {
   LineChart,
@@ -34,6 +37,13 @@ interface ChatStats {
   avgResponseTime: number;
   errorCount: number;
   errorRate: number;
+}
+
+interface FeedbackStats {
+  thumbsUp: number;
+  thumbsDown: number;
+  totalFeedback: number;
+  satisfactionScore: number;
 }
 
 interface Message {
@@ -116,6 +126,7 @@ export default function ChatDashboardPage() {
 
   // Data states
   const [stats, setStats] = useState<ChatStats | null>(null);
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [messagesOverTime, setMessagesOverTime] = useState<MessageOverTime[]>([]);
   const [responseTimes, setResponseTimes] = useState<ResponseTime[]>([]);
@@ -139,25 +150,28 @@ export default function ChatDashboardPage() {
         setError(null);
 
         // Fetch all data in parallel
-        const [statsRes, sessionsRes, chartDataRes, configRes] = await Promise.all([
+        const [statsRes, feedbackRes, sessionsRes, chartDataRes, configRes] = await Promise.all([
           fetch(`/api/analytics/chat/${chatName}/stats`),
+          fetch(`/api/analytics/chat/${chatName}/feedback`),
           fetch(`/api/analytics/chat/${chatName}/sessions?limit=50`),
           fetch(`/api/analytics/chat/${chatName}/chart-data?days=30`),
           fetch(`/api/chat-config/${chatName}`),
         ]);
 
-        if (!statsRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok) {
+        if (!statsRes.ok || !feedbackRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok) {
           throw new Error("Fehler beim Laden der Chat-Daten");
         }
 
-        const [statsData, sessionsData, chartData, configData] = await Promise.all([
+        const [statsData, feedbackData, sessionsData, chartData, configData] = await Promise.all([
           statsRes.json(),
+          feedbackRes.json(),
           sessionsRes.json(),
           chartDataRes.json(),
           configRes.json(),
         ]);
 
         setStats(statsData);
+        setFeedbackStats(feedbackData);
         setSessions(sessionsData);
         setMessagesOverTime(chartData.messagesOverTime);
         setResponseTimes(chartData.responseTimes);
@@ -320,6 +334,36 @@ export default function ChatDashboardPage() {
                 <p className="text-xs text-gray-500 mt-1">{stats.errorCount} Fehler</p>
               </div>
             </div>
+
+            {/* Feedback Stats Cards */}
+            {feedbackStats && feedbackStats.totalFeedback > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <ThumbsUp className="w-5 h-5 text-green-500" />
+                    <span className="text-2xl font-bold text-green-600">{feedbackStats.thumbsUp}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">Thumbs Up</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <ThumbsDown className="w-5 h-5 text-red-500" />
+                    <span className="text-2xl font-bold text-red-600">{feedbackStats.thumbsDown}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">Thumbs Down</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <Smile className="w-5 h-5 text-blue-500" />
+                    <span className="text-2xl font-bold text-blue-600">{feedbackStats.satisfactionScore}%</span>
+                  </div>
+                  <p className="text-sm text-gray-600">Zufriedenheit</p>
+                  <p className="text-xs text-gray-500 mt-1">{feedbackStats.totalFeedback} Bewertungen</p>
+                </div>
+              </div>
+            )}
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
