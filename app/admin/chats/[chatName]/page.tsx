@@ -108,7 +108,7 @@ interface ChatConfig {
   createdAt: number;
 }
 
-type TabType = "analytics" | "settings";
+type TabType = "analytics" | "temporal" | "settings";
 
 export default function ChatDashboardPage() {
   const params = useParams();

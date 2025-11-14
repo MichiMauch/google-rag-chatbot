@@ -588,3 +588,134 @@ export async function getMessagesWithFeedback(chatName: string, limit = 50) {
     return [];
   }
 }
+
+/**
+ * Get temporal patterns for user messages (when users ask questions)
+ * Converts UTC timestamps to Europe/Zurich timezone
+ */
+export async function getTemporalPatterns(chatName: string, days: number = 30) {
+  try {
+    const cutoffDate = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    // Get all user messages for the chat
+    const messages = await db
+      .select({
+        createdAt: chatMessages.createdAt,
+      })
+      .from(chatMessages)
+      .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+      .where(and(
+        eq(chatSessions.chatName, chatName),
+        eq(chatMessages.role, "user"),
+        sql`${chatMessages.createdAt} >= ${cutoffDate}`
+      ));
+
+    // Initialize data structures
+    const weekdayCount: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    const hourCount: Record<number, number> = {};
+    const heatmapData: Record<number, Record<number, number>> = {};
+    const timeOfDayCount = { morning: 0, midday: 0, afternoon: 0, evening: 0 };
+
+    // Initialize hour counts (0-23)
+    for (let i = 0; i < 24; i++) {
+      hourCount[i] = 0;
+    }
+
+    // Initialize heatmap data (weekday 0-6, hour 0-23)
+    for (let day = 0; day < 7; day++) {
+      heatmapData[day] = {};
+      for (let hour = 0; hour < 24; hour++) {
+        heatmapData[day][hour] = 0;
+      }
+    }
+
+    // Process each message
+    for (const message of messages) {
+      // Convert UTC timestamp to Europe/Zurich timezone
+      const date = new Date(message.createdAt);
+      const zurichTime = new Intl.DateTimeFormat("de-CH", {
+        timeZone: "Europe/Zurich",
+        weekday: "short",
+        hour: "numeric",
+        minute: "numeric",
+      });
+
+      // Get weekday (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+      const weekday = date.getUTCDay();
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Zurich",
+        hour: "numeric",
+        hour12: false,
+      });
+      const hour = parseInt(formatter.format(date));
+
+      // Count by weekday
+      weekdayCount[weekday]++;
+
+      // Count by hour
+      hourCount[hour]++;
+
+      // Heatmap data
+      heatmapData[weekday][hour]++;
+
+      // Time of day categorization
+      if (hour >= 6 && hour < 12) {
+        timeOfDayCount.morning++;
+      } else if (hour >= 12 && hour < 14) {
+        timeOfDayCount.midday++;
+      } else if (hour >= 14 && hour < 18) {
+        timeOfDayCount.afternoon++;
+      } else {
+        timeOfDayCount.evening++;
+      }
+    }
+
+    // Format weekday data with German labels
+    const weekdayLabels = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+    const weekdayData = weekdayLabels.map((label, index) => ({
+      weekday: label,
+      count: weekdayCount[index],
+    }));
+
+    // Format hour data
+    const hourData = Object.entries(hourCount).map(([hour, count]) => ({
+      hour: parseInt(hour),
+      count: count,
+    }));
+
+    // Format heatmap data
+    const formattedHeatmap = Object.entries(heatmapData).map(([weekday, hours]) => ({
+      weekday: parseInt(weekday),
+      weekdayLabel: weekdayLabels[parseInt(weekday)],
+      hours: Object.entries(hours).map(([hour, count]) => ({
+        hour: parseInt(hour),
+        count: count,
+      })),
+    }));
+
+    // Format time of day data
+    const timeOfDayData = [
+      { period: "Morgen (6-12)", count: timeOfDayCount.morning },
+      { period: "Mittag (12-14)", count: timeOfDayCount.midday },
+      { period: "Nachmittag (14-18)", count: timeOfDayCount.afternoon },
+      { period: "Abend/Nacht", count: timeOfDayCount.evening },
+    ];
+
+    return {
+      weekdayData,
+      hourData,
+      heatmapData: formattedHeatmap,
+      timeOfDayData,
+      totalMessages: messages.length,
+    };
+  } catch (error) {
+    console.error("Error in getTemporalPatterns:", error);
+    return {
+      weekdayData: [],
+      hourData: [],
+      heatmapData: [],
+      timeOfDayData: [],
+      totalMessages: 0,
+    };
+  }
+}
