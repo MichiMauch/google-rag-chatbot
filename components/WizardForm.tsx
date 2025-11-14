@@ -245,7 +245,7 @@ export default function WizardForm() {
             uploadType,
             themeId: selectedTheme,
             sitemapUrls: selectedSitemaps,
-            maxPages: 5,
+            maxPages: 100,
             systemInstruction: systemInstruction || undefined,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
