@@ -95,6 +95,40 @@ function SourcesSidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const [sourceImages, setSourceImages] = useState<Record<string, string | null>>({});
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
+
+  // Fetch OG images on-demand for sources with URLs
+  useEffect(() => {
+    sources.forEach(async (source) => {
+      if (source.url && !sourceImages.hasOwnProperty(source.url) && !loadingImages.has(source.url)) {
+        setLoadingImages(prev => new Set(prev).add(source.url));
+
+        try {
+          const response = await fetch(`/api/fetch-og-image?url=${encodeURIComponent(source.url)}`);
+          const data = await response.json();
+
+          setSourceImages(prev => ({
+            ...prev,
+            [source.url!]: data.imageUrl || null
+          }));
+        } catch (error) {
+          console.error('Error fetching OG image:', error);
+          setSourceImages(prev => ({
+            ...prev,
+            [source.url!]: null
+          }));
+        } finally {
+          setLoadingImages(prev => {
+            const next = new Set(prev);
+            next.delete(source.url!);
+            return next;
+          });
+        }
+      }
+    });
+  }, [sources]);
+
   if (sources.length === 0) {
     return (
       <div className="hidden lg:block lg:w-64 xl:w-72 2xl:w-80 border-r flex-shrink-0" style={{ borderColor: "var(--color-text-light)", backgroundColor: "var(--color-surface)" }}>
@@ -168,19 +202,32 @@ function SourcesSidebar({
                       backgroundColor: "var(--color-background)",
                     }}
                   >
-                    {source.image && (
+                    {/* Show loading skeleton while fetching image */}
+                    {loadingImages.has(source.url) && (
+                      <div className="relative w-full h-32 bg-gray-200 animate-pulse">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                        </div>
+                      </div>
+                    )}
+                    {/* Show fetched OG image */}
+                    {!loadingImages.has(source.url) && sourceImages[source.url] && (
                       <div className="relative w-full h-32 bg-gray-100">
                         <img
-                          src={source.image}
+                          src={sourceImages[source.url]!}
                           alt={source.displayName}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-opacity duration-300 opacity-100"
                           loading="lazy"
+                          onError={(e) => {
+                            // Hide image on error
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                     )}
                     <div className="p-3">
                       <div className="flex items-start space-x-2">
-                        {!source.image && (
+                        {!loadingImages.has(source.url) && !sourceImages[source.url] && (
                           <FileText
                             className="w-4 h-4 flex-shrink-0 mt-0.5"
                             style={{ color: "var(--color-primary)" }}
@@ -207,24 +254,13 @@ function SourcesSidebar({
                       backgroundColor: "var(--color-background)",
                     }}
                   >
-                    {source.image && (
-                      <div className="relative w-full h-32 bg-gray-100">
-                        <img
-                          src={source.image}
-                          alt={source.displayName}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
+                    {/* For document sources without URLs, just show icon */}
                     <div className="p-3">
                       <div className="flex items-start space-x-2">
-                        {!source.image && (
-                          <FileText
-                            className="w-4 h-4 flex-shrink-0 mt-0.5"
-                            style={{ color: "var(--color-primary)" }}
-                          />
-                        )}
+                        <FileText
+                          className="w-4 h-4 flex-shrink-0 mt-0.5"
+                          style={{ color: "var(--color-primary)" }}
+                        />
                         <p className="text-sm font-medium break-words flex-1 line-clamp-2" style={{ color: "var(--color-text)" }}>
                           {source.displayName}
                         </p>
@@ -372,11 +408,10 @@ export default function SimpleChatInterface({
       if (data.usedFileUris && data.usedFileUris.length > 0) {
         const usedFiles = fileUris.filter((f) => data.usedFileUris.includes(f.uri));
 
-        // Extract sources with teaser images
+        // Extract sources (OG images will be fetched on-demand in SourcesSidebar)
         sources = usedFiles.map((f) => ({
           displayName: f.displayName || f.name.split("/").pop() || f.name,
           url: f.url,
-          image: f.images && f.images.length > 0 ? f.images[0] : undefined,
         }));
 
         // Update sidebar sources (add unique sources only)
