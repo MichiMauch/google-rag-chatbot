@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -85,6 +85,130 @@ function SourcesDisplay({ sources }: { sources?: Source[] }) {
   );
 }
 
+// Component for sources sidebar
+function SourcesSidebar({
+  sources,
+  isOpen,
+  onClose
+}: {
+  sources: Source[];
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  if (sources.length === 0) {
+    return (
+      <div className="hidden lg:block lg:w-64 xl:w-72 2xl:w-80 border-r flex-shrink-0" style={{ borderColor: "var(--color-text-light)", backgroundColor: "var(--color-surface)" }}>
+        <div className="p-6">
+          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-text)" }}>
+            Quellen
+          </h3>
+          <p className="text-xs" style={{ color: "var(--color-text-light)" }}>
+            Stelle eine Frage, um Quellen anzuzeigen
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          w-80 lg:w-64 xl:w-72 2xl:w-80
+          border-r flex-shrink-0
+          transform transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+        style={{
+          borderColor: "var(--color-text-light)",
+          backgroundColor: "var(--color-surface)"
+        }}
+      >
+        <div className="h-full overflow-y-auto">
+          <div className="p-4 sm:p-6 border-b" style={{ borderColor: "var(--color-text-light)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
+                Berücksichtigte Inhalte
+              </h3>
+              <button
+                onClick={onClose}
+                className="lg:hidden p-1 rounded hover:bg-black/5"
+              >
+                <X className="w-4 h-4" style={{ color: "var(--color-text)" }} />
+              </button>
+            </div>
+            <p className="text-xs" style={{ color: "var(--color-text-light)" }}>
+              {sources.length} {sources.length === 1 ? 'Quelle' : 'Quellen'}
+            </p>
+          </div>
+
+          <div className="p-4 sm:p-6 space-y-3">
+            {sources.map((source, index) => (
+              <div
+                key={index}
+                className="group"
+              >
+                {source.url ? (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start space-x-3 p-3 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: "var(--color-background)",
+                    }}
+                  >
+                    <FileText
+                      className="w-4 h-4 flex-shrink-0 mt-0.5"
+                      style={{ color: "var(--color-primary)" }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium break-words" style={{ color: "var(--color-text)" }}>
+                        {source.displayName}
+                      </p>
+                      <div className="flex items-center mt-1">
+                        <span className="text-xs" style={{ color: "var(--color-text-light)" }}>
+                          Link öffnen
+                        </span>
+                        <ChevronRight className="w-3 h-3 ml-1" style={{ color: "var(--color-text-light)" }} />
+                      </div>
+                    </div>
+                  </a>
+                ) : (
+                  <div
+                    className="flex items-start space-x-3 p-3 rounded-lg"
+                    style={{
+                      backgroundColor: "var(--color-background)",
+                    }}
+                  >
+                    <FileText
+                      className="w-4 h-4 flex-shrink-0 mt-0.5"
+                      style={{ color: "var(--color-primary)" }}
+                    />
+                    <p className="text-sm font-medium break-words flex-1" style={{ color: "var(--color-text)" }}>
+                      {source.displayName}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // Component for typewriter effect on assistant messages
 function TypedMessage({
   content,
@@ -106,7 +230,7 @@ function TypedMessage({
   return (
     <div>
       <div
-        className="prose prose-sm max-w-none cursor-pointer"
+        className="prose prose-sm sm:prose-base max-w-none cursor-pointer"
         onClick={skip}
         title={isComplete ? "" : "Klicken um vollständigen Text anzuzeigen"}
       >
@@ -136,6 +260,8 @@ export default function SimpleChatInterface({
   const [loading, setLoading] = useState(false);
   const [latestAssistantId, setLatestAssistantId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [usedSources, setUsedSources] = useState<Source[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -220,6 +346,17 @@ export default function SimpleChatInterface({
           url: f.url,
         }));
 
+        // Update sidebar sources (add unique sources only)
+        setUsedSources(prev => {
+          const newSources = [...prev];
+          sources?.forEach(source => {
+            if (!newSources.find(s => s.displayName === source.displayName)) {
+              newSources.push(source);
+            }
+          });
+          return newSources;
+        });
+
         // Extract images from used files (intelligent selection)
         const collectedImages: string[] = [];
         for (const file of usedFiles) {
@@ -264,107 +401,129 @@ export default function SimpleChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-screen" style={{ backgroundColor: "var(--color-background)" }}>
+    <div className="flex h-screen" style={{ backgroundColor: "var(--color-background)" }}>
+      {/* Sources Sidebar */}
+      <SourcesSidebar
+        sources={usedSources}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 min-w-0">
         {/* Header */}
         <div
-        className="text-white p-4 flex-shrink-0"
-        style={{
-          background: `linear-gradient(to right, var(--color-primary), var(--color-primary-dark))`,
-        }}
-      >
-        <div>
-          <h2 className="text-lg font-semibold">{chatName}</h2>
-          <p className="text-sm opacity-90">
-            {fileUris.length > 0
-              ? `${fileUris.length} Dokument(e) geladen`
-              : "Keine Dokumente geladen"}
-          </p>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="space-y-4">
-            <div className="text-center mt-8" style={{ color: "var(--color-text-light)" }}>
-              <Bot className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--color-text-light)" }} />
-              <p className="text-lg font-medium" style={{ color: "var(--color-text)" }}>
-                Willkommen!
-              </p>
-              <p className="text-sm mt-2">
-                {fileUris.length > 0
-                  ? "Stelle Fragen zu deinen hochgeladenen Dokumenten."
-                  : "Lade zuerst Dokumente hoch, um mit dem RAG-System zu chatten."}
-              </p>
-            </div>
-
-            {/* Suggested Questions */}
-            {showSuggestions && fileUris.length > 0 && (
-              <SuggestedQuestions
-                fileUris={fileUris}
-                onQuestionClick={(question) => {
-                  setShowSuggestions(false);
-                  handleSend(question);
-                }}
-                onDismiss={() => setShowSuggestions(false)}
-              />
-            )}
-          </div>
-        ) : null}
-
-        {messages.map((message, index) => {
-          const isLatestAssistant =
-            message.role === "assistant" &&
-            index === messages.length - 1 &&
-            latestAssistantId !== null &&
-            !loading;
-
-          return (
-            <div
-              key={index}
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`flex space-x-2 max-w-[80%] ${
-                  message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
-                }`}
+          className="text-white p-4 sm:p-6 flex-shrink-0"
+          style={{
+            background: `linear-gradient(to right, var(--color-primary), var(--color-primary-dark))`,
+          }}
+        >
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-lg hover:bg-white/20 transition-colors"
+                title="Quellen anzeigen"
               >
-                <div
-                  className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{
-                    backgroundColor:
-                      message.role === "user"
-                        ? "var(--color-primary)"
-                        : "var(--color-surface)",
-                    color:
-                      message.role === "user"
-                        ? "var(--color-surface)"
-                        : "var(--color-text)",
-                    border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
-                  }}
-                >
-                  {message.role === "user" ? (
-                    <User className="w-4 h-4" />
-                  ) : (
-                    <Bot className="w-4 h-4" />
-                  )}
+                <Menu className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-xl font-semibold">{chatConfig.displayName}</h2>
+                <p className="text-sm opacity-90">
+                  {fileUris.length > 0
+                    ? `${fileUris.length} Dokument(e) geladen`
+                    : "Keine Dokumente geladen"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+          <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+            {messages.length === 0 ? (
+              <div className="space-y-6">
+                <div className="text-center mt-8" style={{ color: "var(--color-text-light)" }}>
+                  <Bot className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--color-text-light)" }} />
+                  <p className="text-lg font-medium" style={{ color: "var(--color-text)" }}>
+                    Willkommen!
+                  </p>
+                  <p className="text-sm mt-2">
+                    {fileUris.length > 0
+                      ? "Stelle Fragen zu deinen hochgeladenen Dokumenten."
+                      : "Lade zuerst Dokumente hoch, um mit dem RAG-System zu chatten."}
+                  </p>
                 </div>
+
+                {/* Suggested Questions */}
+                {showSuggestions && fileUris.length > 0 && (
+                  <SuggestedQuestions
+                    fileUris={fileUris}
+                    onQuestionClick={(question) => {
+                      setShowSuggestions(false);
+                      handleSend(question);
+                    }}
+                    onDismiss={() => setShowSuggestions(false)}
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {messages.map((message, index) => {
+              const isLatestAssistant =
+                message.role === "assistant" &&
+                index === messages.length - 1 &&
+                latestAssistantId !== null &&
+                !loading;
+
+              return (
                 <div
-                  className="px-4 py-2 rounded-lg"
-                  style={{
-                    backgroundColor:
-                      message.role === "user"
-                        ? "var(--color-primary)"
-                        : "var(--color-surface)",
-                    color:
-                      message.role === "user"
-                        ? "var(--color-surface)"
-                        : "var(--color-text)",
-                    border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
-                  }}
+                  key={index}
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
                 >
+                  <div
+                    className={`flex space-x-2 sm:space-x-3 max-w-[90%] sm:max-w-[85%] lg:max-w-[80%] ${
+                      message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                    }`}
+                  >
+                    <div
+                      className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-sm"
+                      style={{
+                        backgroundColor:
+                          message.role === "user"
+                            ? "var(--color-primary)"
+                            : "var(--color-surface)",
+                        color:
+                          message.role === "user"
+                            ? "var(--color-surface)"
+                            : "var(--color-text)",
+                        border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
+                      }}
+                    >
+                      {message.role === "user" ? (
+                        <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                      ) : (
+                        <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+                      )}
+                    </div>
+                    <div
+                      className="px-4 py-3 sm:px-5 sm:py-3 rounded-2xl shadow-sm"
+                      style={{
+                        backgroundColor:
+                          message.role === "user"
+                            ? "var(--color-primary)"
+                            : "var(--color-surface)",
+                        color:
+                          message.role === "user"
+                            ? "var(--color-surface)"
+                            : "var(--color-text)",
+                        border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
+                      }}
+                    >
                   {message.role === "assistant" ? (
                     isLatestAssistant ? (
                       <TypedMessage
@@ -375,7 +534,7 @@ export default function SimpleChatInterface({
                       />
                     ) : (
                       <div>
-                        <div className="prose prose-sm max-w-none">
+                        <div className="prose prose-sm sm:prose-base max-w-none">
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
                         <SourcesDisplay sources={message.sources} />
@@ -385,78 +544,82 @@ export default function SimpleChatInterface({
                       </div>
                     )
                   ) : (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
                   )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex space-x-2 sm:space-x-3 max-w-[90%] sm:max-w-[85%] lg:max-w-[80%]">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-sm"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      color: "var(--color-text)",
+                      border: "1px solid var(--color-text-light)",
+                    }}
+                  >
+                    <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div
+                    className="px-4 py-3 sm:px-5 sm:py-3 rounded-2xl shadow-sm"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      border: "1px solid var(--color-text-light)",
+                    }}
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--color-text)" }} />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="flex space-x-2 max-w-[80%]">
-              <div
-                className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  border: "1px solid var(--color-text-light)",
-                }}
-              >
-                <Bot className="w-4 h-4" />
-              </div>
-              <div
-                className="px-4 py-2 rounded-lg"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-text-light)",
-                }}
-              >
-                <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--color-text)" }} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="border-t p-4" style={{ borderColor: "var(--color-text-light)", backgroundColor: "var(--color-surface)" }}>
-        <div className="flex space-x-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Stelle eine Frage zu deinen Dokumenten..."
-            className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 resize-none"
-            style={{
-              borderColor: "var(--color-text-light)",
-              backgroundColor: "var(--color-background)",
-              color: "var(--color-text)",
-            }}
-            rows={2}
-            disabled={loading}
-          />
-          <button
-            onClick={() => handleSend()}
-            disabled={!input.trim() || loading}
-            className="text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            style={{
-              backgroundColor: "var(--color-primary)",
-            }}
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
             )}
-          </button>
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-        <p className="text-xs mt-2" style={{ color: "var(--color-text-light)" }}>
-          Drücke Enter zum Senden, Shift+Enter für neue Zeile
-        </p>
+
+        {/* Input */}
+        <div className="border-t p-4 sm:p-6" style={{ borderColor: "var(--color-text-light)", backgroundColor: "var(--color-surface)" }}>
+          <div className="max-w-5xl mx-auto">
+            <div className="flex space-x-2 sm:space-x-3">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Stelle eine Frage zu deinen Dokumenten..."
+                className="flex-1 border rounded-xl px-4 py-3 sm:px-5 sm:py-3 focus:outline-none focus:ring-2 resize-none shadow-sm transition-shadow focus:shadow-md"
+                style={{
+                  borderColor: "var(--color-text-light)",
+                  backgroundColor: "var(--color-background)",
+                  color: "var(--color-text)",
+                }}
+                rows={3}
+                disabled={loading}
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={!input.trim() || loading}
+                className="text-white w-12 h-12 sm:w-14 sm:h-14 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                }}
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+                )}
+              </button>
+            </div>
+            <p className="text-xs mt-2 sm:mt-3 px-1" style={{ color: "var(--color-text-light)" }}>
+              Drücke Enter zum Senden, Shift+Enter für neue Zeile
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
