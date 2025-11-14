@@ -65,6 +65,11 @@ export default function EmbedChatPage() {
         const data = await response.json();
         const parsedConfig: ChatConfig = data.config;
 
+        // DEBUG: Log domain validation info
+        console.log("[EMBED DEBUG] Referrer:", referrer);
+        console.log("[EMBED DEBUG] Referrer Domain:", referrerDomain);
+        console.log("[EMBED DEBUG] Allowed Domains:", parsedConfig.allowedDomains);
+
         // Validate domain if allowedDomains are set
         if (parsedConfig.allowedDomains && parsedConfig.allowedDomains.length > 0) {
           const isAllowed = parsedConfig.allowedDomains.some((domain) => {
@@ -77,8 +82,12 @@ export default function EmbedChatPage() {
               return referrerDomain.endsWith(baseDomain);
             }
 
-            return referrerDomain === cleanDomain || referrerDomain === "";
+            const matches = referrerDomain === cleanDomain || referrerDomain === "";
+            console.log("[EMBED DEBUG] Checking domain:", cleanDomain, "against", referrerDomain, "=>", matches);
+            return matches;
           });
+
+          console.log("[EMBED DEBUG] isAllowed:", isAllowed);
 
           if (!isAllowed && referrerDomain) {
             setError(
