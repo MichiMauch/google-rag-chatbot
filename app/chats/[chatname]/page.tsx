@@ -35,32 +35,36 @@ export default function ChatPage() {
   const [theme, setTheme] = useState<ColorTheme | null>(null);
 
   useEffect(() => {
-    // Load chat configuration from localStorage
-    const storageKey = `chat-config-${chatName}`;
-    const stored = localStorage.getItem(storageKey);
+    // Load chat configuration from API
+    async function loadChatConfig() {
+      try {
+        const response = await fetch(`/api/chat-config/${chatName}`);
 
-    if (!stored) {
-      setError(
-        "Chat-Konfiguration nicht gefunden. Bitte erstelle einen neuen Chat."
-      );
-      setLoading(false);
-      return;
+        if (!response.ok) {
+          setError(
+            "Chat-Konfiguration nicht gefunden. Bitte erstelle einen neuen Chat."
+          );
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json();
+        const parsedConfig: ChatConfig = data.config;
+        setConfig(parsedConfig);
+
+        // Load theme
+        const loadedTheme = getThemeById(parsedConfig.themeId);
+        setTheme(loadedTheme);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Error loading chat config:", err);
+        setError("Fehler beim Laden der Chat-Konfiguration");
+        setLoading(false);
+      }
     }
 
-    try {
-      const parsedConfig: ChatConfig = JSON.parse(stored);
-      setConfig(parsedConfig);
-
-      // Load theme
-      const loadedTheme = getThemeById(parsedConfig.themeId);
-      setTheme(loadedTheme);
-
-      setLoading(false);
-    } catch (err) {
-      console.error("Error loading chat config:", err);
-      setError("Fehler beim Laden der Chat-Konfiguration");
-      setLoading(false);
-    }
+    loadChatConfig();
   }, [chatName]);
 
   if (loading) {
