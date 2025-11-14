@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, Trash2, Code, Shield } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, Code, Shield } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -138,7 +138,6 @@ export default function SimpleChatInterface({
   const [loading, setLoading] = useState(false);
   const [latestAssistantId, setLatestAssistantId] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [deleting, setDeleting] = useState(false);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [showDomainsModal, setShowDomainsModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -281,51 +280,6 @@ export default function SimpleChatInterface({
     localStorage.setItem(`chat-config-${chatConfig.chatName}`, JSON.stringify(updatedConfig));
   }
 
-  async function handleDelete() {
-    if (!chatConfig.fileSearchStoreName) {
-      console.error("No File Search Store to delete");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Möchtest du den Chat "${chatConfig.displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
-    );
-
-    if (!confirmed) return;
-
-    setDeleting(true);
-
-    try {
-      const response = await fetch("/api/delete-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chatName: chatConfig.chatName,
-          fileSearchStoreName: chatConfig.fileSearchStoreName,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Fehler beim Löschen");
-      }
-
-      // Delete from localStorage
-      localStorage.removeItem(`chat-config-${chatConfig.chatName}`);
-      localStorage.removeItem(`chat-messages-${chatConfig.chatName}`);
-
-      // Redirect to home
-      router.push("/");
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      alert(`Fehler beim Löschen: ${error.message}`);
-      setDeleting(false);
-    }
-  }
-
   return (
     <>
       <EmbedCodeModal
@@ -373,18 +327,6 @@ export default function SimpleChatInterface({
               title="Embed Code generieren"
             >
               <Code className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="p-2 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Chat löschen"
-            >
-              {deleting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Trash2 className="w-5 h-5" />
-              )}
             </button>
           </div>
         </div>

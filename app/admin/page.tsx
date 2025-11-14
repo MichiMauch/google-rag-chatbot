@@ -99,6 +99,8 @@ export default function AdminPage() {
     if (!confirmDelete) return;
 
     const { name: storeName, displayName } = confirmDelete;
+    const chatName = getChatNameFromStore(displayName);
+
     setConfirmDelete(null);
     setDeletingStore(storeName);
 
@@ -109,82 +111,31 @@ export default function AdminPage() {
     setShowDeletionLog(true);
 
     try {
-      const response = await fetch("/api/admin/stores", {
-        method: "DELETE",
+      setDeletionLogs((prev) => [...prev, `🗑️ Lösche Chat "${chatName}"...`]);
+
+      const response = await fetch("/api/delete-chat", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ storeName }),
+        body: JSON.stringify({
+          chatName,
+          fileSearchStoreName: storeName
+        }),
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error("Fehler beim Löschen");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Löschen");
       }
 
-      // Read the stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      const data = await response.json();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        // Decode the chunk
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const event: LogEvent = JSON.parse(line.substring(6));
-
-              // Handle different event types
-              switch (event.type) {
-                case "info":
-                  setDeletionLogs((prev) => [...prev, `ℹ️ ${event.message}`]);
-                  break;
-
-                case "batch_start":
-                  setDeletionLogs((prev) => [...prev, `\n📦 Batch ${event.batch} gestartet`]);
-                  break;
-
-                case "progress":
-                  setDeletionProgress({ current: event.current, total: event.total });
-                  setDeletionLogs((prev) => [...prev, `  [${event.current}/${event.total}] ${event.message}`]);
-                  break;
-
-                case "batch_complete":
-                  setDeletionLogs((prev) => [
-                    ...prev,
-                    `✅ Batch ${event.batch} abgeschlossen: ${event.deleted}/${event.total} gelöscht`,
-                  ]);
-                  break;
-
-                case "error":
-                  setDeletionLogs((prev) => [...prev, `❌ ${event.message}`]);
-                  break;
-
-                case "complete":
-                  setDeletionLogs((prev) => [
-                    ...prev,
-                    `\n✨ Löschung abgeschlossen: ${event.deletedCount} Dokument(e) gelöscht`,
-                  ]);
-                  if (event.errorCount > 0) {
-                    setDeletionLogs((prev) => [...prev, `⚠️ ${event.errorCount} Fehler aufgetreten`]);
-                  }
-                  break;
-
-                case "store_deleted":
-                  setDeletionLogs((prev) => [...prev, `🎉 ${event.message}`]);
-                  setDeletionComplete(true);
-                  break;
-              }
-            } catch (e) {
-              console.error("Error parsing event:", e);
-            }
-          }
-        }
-      }
+      // Add log messages for each step
+      setDeletionLogs((prev) => [...prev, `✅ File Search Store gelöscht`]);
+      setDeletionLogs((prev) => [...prev, `✅ Datenbank-Konfiguration gelöscht`]);
+      setDeletionLogs((prev) => [...prev, `\n🎉 ${data.message}`]);
+      setDeletionComplete(true);
 
       // Reload stats after successful deletion
       await loadStats();

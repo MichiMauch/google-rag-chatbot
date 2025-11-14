@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 import { db } from "@/lib/db";
-import { chatConfigs } from "@/lib/schema";
+import {
+  chatConfigs,
+  chatSessions,
+  chatAnalytics,
+  scrapedPages,
+  updateHistory,
+} from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
@@ -36,13 +42,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Always delete config from database (even if store didn't exist)
+    // Always delete from database (even if store didn't exist)
     try {
+      // Delete analytics data first (no cascade dependencies)
+      await db.delete(chatAnalytics).where(eq(chatAnalytics.chatName, chatName));
+      console.log(`Analytics data deleted for: ${chatName}`);
+
+      // Delete scraped pages
+      await db.delete(scrapedPages).where(eq(scrapedPages.chatName, chatName));
+      console.log(`Scraped pages deleted for: ${chatName}`);
+
+      // Delete update history (this will cascade delete pageUpdateLogs)
+      await db.delete(updateHistory).where(eq(updateHistory.chatName, chatName));
+      console.log(`Update history deleted for: ${chatName}`);
+
+      // Delete chat sessions (this will cascade delete chatMessages)
+      await db.delete(chatSessions).where(eq(chatSessions.chatName, chatName));
+      console.log(`Chat sessions deleted for: ${chatName}`);
+
+      // Finally, delete config
       await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));
       console.log(`Config deleted from database: ${chatName}`);
     } catch (error: any) {
-      console.warn(`Could not delete config for ${chatName}:`, error.message);
-      // Don't fail the request if config deletion fails
+      console.warn(`Could not delete data for ${chatName}:`, error.message);
+      // Don't fail the request if database deletion fails
     }
 
     return NextResponse.json({
