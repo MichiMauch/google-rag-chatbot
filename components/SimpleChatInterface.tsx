@@ -380,6 +380,7 @@ export default function SimpleChatInterface({
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setUsedSources([]); // Clear sources for new question
     setLoading(true);
 
     try {
