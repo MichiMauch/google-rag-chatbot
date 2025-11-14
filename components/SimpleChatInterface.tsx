@@ -101,27 +101,28 @@ function SourcesSidebar({
   // Fetch OG images on-demand for sources with URLs
   useEffect(() => {
     sources.forEach(async (source) => {
-      if (source.url && !sourceImages.hasOwnProperty(source.url) && !loadingImages.has(source.url)) {
-        setLoadingImages(prev => new Set(prev).add(source.url));
+      const sourceUrl = source.url;
+      if (sourceUrl && !sourceImages.hasOwnProperty(sourceUrl) && !loadingImages.has(sourceUrl)) {
+        setLoadingImages(prev => new Set(prev).add(sourceUrl));
 
         try {
-          const response = await fetch(`/api/fetch-og-image?url=${encodeURIComponent(source.url)}`);
+          const response = await fetch(`/api/fetch-og-image?url=${encodeURIComponent(sourceUrl)}`);
           const data = await response.json();
 
           setSourceImages(prev => ({
             ...prev,
-            [source.url!]: data.imageUrl || null
+            [sourceUrl]: data.imageUrl || null
           }));
         } catch (error) {
           console.error('Error fetching OG image:', error);
           setSourceImages(prev => ({
             ...prev,
-            [source.url!]: null
+            [sourceUrl]: null
           }));
         } finally {
           setLoadingImages(prev => {
             const next = new Set(prev);
-            next.delete(source.url!);
+            next.delete(sourceUrl);
             return next;
           });
         }
@@ -187,14 +188,16 @@ function SourcesSidebar({
           </div>
 
           <div className="p-4 sm:p-6 space-y-3">
-            {sources.map((source, index) => (
+            {sources.map((source, index) => {
+              const sourceUrl = source.url;
+              return (
               <div
                 key={index}
                 className="group"
               >
-                {source.url ? (
+                {sourceUrl ? (
                   <a
-                    href={source.url}
+                    href={sourceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block rounded-lg overflow-hidden transition-all hover:shadow-md"
@@ -203,7 +206,7 @@ function SourcesSidebar({
                     }}
                   >
                     {/* Show loading skeleton while fetching image */}
-                    {loadingImages.has(source.url) && (
+                    {loadingImages.has(sourceUrl) && (
                       <div className="relative w-full h-32 bg-gray-200 animate-pulse">
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
@@ -211,10 +214,10 @@ function SourcesSidebar({
                       </div>
                     )}
                     {/* Show fetched OG image */}
-                    {!loadingImages.has(source.url) && sourceImages[source.url] && (
+                    {!loadingImages.has(sourceUrl) && sourceImages[sourceUrl] && (
                       <div className="relative w-full h-32 bg-gray-100">
                         <img
-                          src={sourceImages[source.url]!}
+                          src={sourceImages[sourceUrl]!}
                           alt={source.displayName}
                           className="w-full h-full object-cover transition-opacity duration-300 opacity-100"
                           loading="lazy"
@@ -227,7 +230,7 @@ function SourcesSidebar({
                     )}
                     <div className="p-3">
                       <div className="flex items-start space-x-2">
-                        {!loadingImages.has(source.url) && !sourceImages[source.url] && (
+                        {!loadingImages.has(sourceUrl) && !sourceImages[sourceUrl] && (
                           <FileText
                             className="w-4 h-4 flex-shrink-0 mt-0.5"
                             style={{ color: "var(--color-primary)" }}
@@ -269,7 +272,8 @@ function SourcesSidebar({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
