@@ -24,57 +24,60 @@ export async function POST(request: NextRequest) {
     console.log(`Deleting File Search Store for chat: ${chatName}`);
     console.log(`Store name: ${fileSearchStoreName}`);
 
-    // First, delete all documents from the store using pagination
+    // First, delete all documents from the store
+    // Note: We need to delete documents in batches since there might be many
     let storeDeleted = false;
     try {
-      console.log(`Fetching all documents from store using REST API...`);
+      console.log(`Deleting all documents from store...`);
 
-      const documents: any[] = [];
-      let nextPageToken: string | undefined = undefined;
-      let pageCount = 0;
+      let totalDeleted = 0;
+      let batchCount = 0;
+      let hasMoreDocuments = true;
 
-      // Use REST API for pagination
-      do {
-        pageCount++;
-        const apiUrl: string = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${process.env.GOOGLE_AI_API_KEY}`;
+      // Keep deleting documents until the store is empty
+      while (hasMoreDocuments) {
+        batchCount++;
+        console.log(`Batch ${batchCount}: Fetching documents...`);
 
-        const response = await fetch(apiUrl);
+        const documentsIterator = await ai.fileSearchStores.documents.list({
+          parent: fileSearchStoreName,
+        });
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch documents: ${response.statusText}`);
+        const documents: any[] = [];
+        for await (const doc of documentsIterator) {
+          documents.push(doc);
         }
 
-        const data = await response.json();
-        const pageDocs = data.documents || [];
-        documents.push(...pageDocs);
-        nextPageToken = data.nextPageToken;
+        console.log(`Batch ${batchCount}: Found ${documents.length} documents`);
 
-        console.log(`Page ${pageCount}: Fetched ${pageDocs.length} documents (total: ${documents.length})`);
-      } while (nextPageToken);
+        if (documents.length === 0) {
+          hasMoreDocuments = false;
+          break;
+        }
 
-      console.log(`Found ${documents.length} documents to delete`);
+        // Delete all documents in this batch
+        for (const doc of documents) {
+          try {
+            await ai.fileSearchStores.documents.delete({
+              name: doc.name,
+              config: { force: true }
+            });
+            totalDeleted++;
 
-      // Delete all documents
-      let deletedCount = 0;
-      for (const doc of documents) {
-        try {
-          await ai.fileSearchStores.documents.delete({
-            name: doc.name,
-            config: { force: true }
-          });
-          deletedCount++;
-
-          // Log progress every 10 documents
-          if (deletedCount % 10 === 0) {
-            console.log(`Progress: ${deletedCount}/${documents.length} documents deleted`);
+            // Log progress every 10 documents
+            if (totalDeleted % 10 === 0) {
+              console.log(`Progress: ${totalDeleted} documents deleted`);
+            }
+          } catch (docError: any) {
+            console.warn(`Failed to delete document ${doc.name}:`, docError.message);
+            // Continue with other documents even if one fails
           }
-        } catch (docError: any) {
-          console.warn(`Failed to delete document ${doc.name}:`, docError.message);
-          // Continue with other documents even if one fails
         }
+
+        console.log(`Batch ${batchCount} complete. Total deleted so far: ${totalDeleted}`);
       }
 
-      console.log(`Deleted ${deletedCount} of ${documents.length} documents`);
+      console.log(`All documents deleted. Total: ${totalDeleted}`);
 
       // Now delete the empty store
       await ai.fileSearchStores.delete({
