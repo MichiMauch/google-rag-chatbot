@@ -48,22 +48,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all documents from the file search store
+    // Get all documents from the file search store using REST API directly for pagination
     console.log(`Fetching documents from: ${fileSearchStoreName}`);
-    const documentsIterator = await ai.fileSearchStores.documents.list({
-      parent: fileSearchStoreName,
-    });
-
-    // Collect all documents
     const documents: any[] = [];
-    let count = 0;
-    for await (const doc of documentsIterator) {
-      documents.push(doc);
-      count++;
-      if (count % 50 === 0) {
-        console.log(`Fetched ${count} documents so far...`);
+    let nextPageToken: string | undefined = undefined;
+    let pageCount = 0;
+
+    do {
+      pageCount++;
+      const url = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${process.env.GOOGLE_AI_API_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch documents: ${response.statusText}`);
       }
-    }
+
+      const data = await response.json();
+      const pageDocs = data.documents || [];
+      documents.push(...pageDocs);
+      nextPageToken = data.nextPageToken;
+
+      console.log(`Page ${pageCount}: Fetched ${pageDocs.length} documents (total: ${documents.length})`);
+    } while (nextPageToken);
 
     console.log(`Total documents fetched: ${documents.length}`);
 
