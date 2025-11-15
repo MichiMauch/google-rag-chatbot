@@ -24,9 +24,39 @@ export async function POST(request: NextRequest) {
     console.log(`Deleting File Search Store for chat: ${chatName}`);
     console.log(`Store name: ${fileSearchStoreName}`);
 
-    // Try to delete the File Search Store (but don't fail if it doesn't exist)
+    // First, delete all documents from the store
     let storeDeleted = false;
     try {
+      console.log(`Fetching all documents from store...`);
+      const documentsIterator = await ai.fileSearchStores.documents.list({
+        parent: fileSearchStoreName,
+      });
+
+      const documents: any[] = [];
+      for await (const doc of documentsIterator) {
+        documents.push(doc);
+      }
+
+      console.log(`Found ${documents.length} documents to delete`);
+
+      // Delete all documents
+      let deletedCount = 0;
+      for (const doc of documents) {
+        try {
+          await ai.fileSearchStores.documents.delete({
+            name: doc.name,
+            config: { force: true }
+          });
+          deletedCount++;
+        } catch (docError: any) {
+          console.warn(`Failed to delete document ${doc.name}:`, docError.message);
+          // Continue with other documents even if one fails
+        }
+      }
+
+      console.log(`Deleted ${deletedCount} of ${documents.length} documents`);
+
+      // Now delete the empty store
       await ai.fileSearchStores.delete({
         name: fileSearchStoreName,
       });
