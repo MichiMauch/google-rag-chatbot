@@ -1,0 +1,519 @@
+# Google RAG Chatbot - Development Rules
+
+This file contains development guidelines and conventions for AI assistants (Claude Code, Cursor, etc.) working on this project.
+
+## Project Context
+
+- **Framework:** Next.js 15 (App Router) + TypeScript 5
+- **Database:** Turso (libSQL/SQLite) + Drizzle ORM v0.44
+- **AI Provider:** Google Gemini 2.5 Flash with File Search (RAG)
+- **Styling:** Tailwind CSS 3.4 + CSS Variables for theming
+- **Language:** German for user-facing content, English for code/comments
+
+---
+
+## 1. FRONTEND DEVELOPMENT
+
+### Component Structure
+
+**Client vs Server Components:**
+- Use `"use client"` directive for all interactive components (useState, useEffect, event handlers)
+- Server components for pages with metadata export (app/layout.tsx, app/page.tsx)
+- Default to client components unless static rendering is explicitly needed
+
+**File Organization:**
+```
+✅ Good: Co-located components
+app/admin/chats/[chatName]/
+  ├── page.tsx
+  └── components/
+      ├── shared/      # Reusable within this feature
+      ├── stats/       # Feature-specific components
+      ├── tabs/        # Tab-level components
+      └── types/       # Type definitions
+
+✅ Good: Shared components
+components/
+  ├── ChatInterface.tsx
+  ├── FileUpload.tsx
+  └── WizardForm.tsx
+
+❌ Avoid: Mixing concerns
+components/
+  ├── AdminDashboardStats.tsx  # Too feature-specific
+```
+
+### TypeScript Conventions
+
+**Strict Mode Enabled - Always use types:**
+```typescript
+// ✅ Good: Inline interface for component props
+interface ChatStatsGridProps {
+  stats: ChatStats;
+}
+
+// ✅ Good: Type imports with 'type' keyword
+import type { ChatStats, FeedbackStats } from "./types/dashboard.types";
+
+// ✅ Good: Inferred types where obvious
+const [loading, setLoading] = useState(false);  // boolean inferred
+
+// ❌ Avoid: Any types
+const data: any = await fetch(...);  // Never use 'any'
+```
+
+**Type Organization:**
+- Small components: Define interfaces inline (< 3 interfaces)
+- Large features: Create types/ subdirectory (like dashboard.types.ts)
+- Shared types: Export from lib/schema.ts (database) or separate files
+
+### State Management
+
+**Local State First:**
+```typescript
+// ✅ Good: useState for component-level state
+const [messages, setMessages] = useState<Message[]>([]);
+const [error, setError] = useState<string | null>(null);
+
+// ✅ Good: Custom hooks for reusable logic
+const { sessions, addSession } = useChatHistory(chatName);
+
+// ❌ Avoid: Global state libraries (we don't use Redux/Zustand)
+```
+
+**Persistence:**
+- Use localStorage for client-side persistence
+- Wrap in useEffect with proper dependencies
+- Always JSON.parse/stringify with error handling
+
+### Refactoring Best Practices
+
+**Phase-by-Phase Approach (learned from successful dashboard refactoring):**
+
+```
+Phase 1 - Foundation:
+  1. Extract shared/reusable components first
+     - Example: StatsCard, ChartContainer, EmptyState
+  2. Centralize type definitions
+     - Example: dashboard.types.ts
+  3. Test build ✓
+  4. Commit
+
+Phase 2 - Feature Components:
+  1. Group related elements into components
+     - Example: ChatStatsGrid (groups 4 stat cards)
+  2. Test build ✓
+  3. Commit
+
+Phase 3+ - Higher-Level Components:
+  1. Extract tab/page-level components
+     - Example: AnalyticsTab, TemporalTab
+  2. Clean up unused imports
+  3. Test build ✓
+  4. Commit
+```
+
+**Key Principles:**
+- Don't refactor everything at once
+- Build after each phase (catch errors early)
+- Commit after each successful phase
+- Aim for 50-70% code reduction as achieved in our dashboard refactoring
+
+---
+
+## 2. BACKEND DEVELOPMENT
+
+### API Routes (Next.js Route Handlers)
+
+**Structure:**
+```typescript
+// app/api/[endpoint]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    // ... processing
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Error description:", error);
+
+    // German user-facing error messages
+    return NextResponse.json(
+      { error: "Benutzerfreundliche Fehlermeldung", success: false },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**Error Handling Patterns:**
+```typescript
+// ✅ Good: Specific user-friendly errors (German)
+if (error.message?.includes("overloaded")) {
+  errorMessage = "⏳ Der Server ist überlastet. Bitte versuche es in wenigen Sekunden erneut.";
+} else if (error.message?.includes("quota")) {
+  errorMessage = "❌ API-Limit erreicht. Bitte später erneut versuchen.";
+}
+
+// ✅ Good: Retry with exponential backoff for 503 errors
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 4) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (error.status === 503 && attempt < maxRetries - 1) {
+        await new Promise(resolve =>
+          setTimeout(resolve, 2000 * Math.pow(2, attempt))
+        );
+        continue;
+      }
+      throw error;  // Fail fast on 429 (quota exceeded)
+    }
+  }
+}
+
+// ✅ Good: Non-blocking analytics
+try {
+  await logChatMessage({ sessionId, role, content });
+} catch (analyticsError) {
+  console.error("Analytics error (non-blocking):", analyticsError);
+  // Don't throw - analytics errors must never break user flow
+}
+```
+
+### Database (Drizzle ORM + Turso)
+
+**Query Patterns:**
+```typescript
+// ✅ Good: Parameterized queries with Drizzle
+const sessions = await db
+  .select()
+  .from(chatSessions)
+  .where(eq(chatSessions.chatName, chatName))
+  .orderBy(desc(chatSessions.createdAt))
+  .limit(50);
+
+// ✅ Good: Aggregations with sql operator
+const stats = await db
+  .select({
+    totalSessions: sql<number>`count(distinct ${chatSessions.id})`,
+    avgMessages: sql<number>`avg(${chatMessages.messageCount})`,
+  })
+  .from(chatSessions)
+  .where(eq(chatSessions.chatName, chatName));
+
+// ❌ Avoid: String concatenation (SQL injection risk)
+const query = `SELECT * FROM sessions WHERE name = '${chatName}'`;
+```
+
+**Schema Changes:**
+```bash
+# 1. Edit lib/schema.ts
+# 2. Generate migration
+npx drizzle-kit generate
+
+# 3. Apply migration
+npx drizzle-kit push
+```
+
+**Best Practices:**
+- Always index frequently queried columns (chatName, sessionId, etc.)
+- Use transactions for multi-table operations
+- Handle NULL values explicitly in queries
+- Use JSON fields for flexible data (files, sitemapUrls)
+
+---
+
+## 3. CODE STYLE & CONVENTIONS
+
+### Import Order
+
+```typescript
+// 1. React & Next.js
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+// 2. Third-party libraries
+import { Loader2, ArrowLeft } from "lucide-react";
+import toast from "react-hot-toast";
+
+// 3. Local components & utilities (use @ alias)
+import ChatInterface from "@/components/ChatInterface";
+import { db } from "@/lib/db";
+import { getOrCreateSession } from "@/lib/analytics";
+
+// 4. Types (use 'type' keyword)
+import type { ChatStats, Session } from "./types/dashboard.types";
+
+// 5. Relative imports (only for co-located files)
+import StatsCard from "./shared/StatsCard";
+```
+
+### Naming Conventions
+
+```
+Components:          PascalCase.tsx        ChatInterface.tsx
+Utilities/Libraries: camelCase.ts          analytics.ts
+API Routes:          kebab-case/route.ts   app/api/chat-config/route.ts
+Hooks:               useCamelCase.ts       useTypewriter.ts
+Database tables:     snake_case            chat_sessions
+Database fields:     camelCase             chatName, createdAt
+```
+
+### Tailwind CSS Usage
+
+**Mobile-First Responsive Design:**
+```typescript
+// ✅ Good: Mobile-first with responsive breakpoints
+<div className="w-full md:w-1/2 lg:w-1/3 xl:w-1/4">
+<div className="text-sm sm:text-base md:text-lg">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+// ✅ Good: CSS variables for dynamic theming
+<div style={{
+  backgroundColor: "var(--color-primary)",
+  color: "var(--color-surface)"
+}}>
+
+// ❌ Avoid: Inline styles (use Tailwind utilities)
+<div style={{ padding: "20px", margin: "10px" }}>  // Use p-5 m-2.5
+```
+
+**Conditional Classes:**
+```typescript
+// ✅ Good: Template literals for dynamic classes
+<div className={`flex ${
+  message.role === "user" ? "justify-end" : "justify-start"
+}`}>
+
+// ✅ Good: Multiple conditions
+<div className={`
+  px-4 py-3 rounded-2xl
+  ${message.role === "user" ? "bg-blue-500 text-white" : "bg-gray-100"}
+  ${loading ? "opacity-50" : ""}
+`}>
+```
+
+---
+
+## 4. PROJECT-SPECIFIC PATTERNS
+
+### Google Gemini Integration
+
+**Model Configuration:**
+```typescript
+// ✅ Good: Consistent model settings
+const response = await ai.generateContent({
+  model: "gemini-2.5-flash",
+  contents: prompt,
+  systemInstruction: systemInstruction || undefined,
+  config: {
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+    tools: [{
+      fileSearch: {
+        fileSearchStoreNames: [fileSearchStoreName],  // Must match DB config
+      },
+    }],
+  }
+});
+
+// ✅ Good: Retry logic for reliability
+const text = await retryWithBackoff(
+  () => generateWithRetry(params),
+  maxRetries: 4,
+  baseDelay: 2000
+);
+```
+
+**File Search Store Management:**
+- Each chat has its own `fileSearchStoreName` (stored in chatConfigs table)
+- Store name must be unique and match Google Gemini console
+- Always verify store exists before making chat requests
+
+### Analytics System
+
+**Session Management:**
+```typescript
+// ✅ Good: Always get or create session before logging
+const session = await getOrCreateSession({
+  chatName,
+  userAgent: request.headers.get("user-agent") || "unknown",
+  ipAddress: request.headers.get("x-forwarded-for") || "unknown",
+});
+
+// ✅ Good: Log all messages
+await logChatMessage({
+  sessionId: session.id,
+  role: "user",  // or "assistant"
+  content: message,
+  responseTime: Date.now() - startTime,  // for assistant messages
+});
+
+// ✅ Good: AI analysis only when enabled
+if (chatConfig.aiAnalysisEnabled) {
+  await analyzeWithAI(session.id, message);
+}
+```
+
+**Non-Blocking Analytics:**
+- Analytics errors NEVER break the main user flow
+- All analytics operations are in try-catch with console.error only
+- User gets response even if analytics fails
+
+### Multi-Tenant Architecture
+
+**Isolation Principles:**
+- Each chat instance (`chatName`) has:
+  - Unique URL: `/chats/[chatname]`
+  - Own File Search Store in Google Gemini
+  - Own configuration (theme, system instruction, files)
+  - Isolated analytics data
+  - Optional embedding: `/embed/[chatname]`
+
+**Configuration Loading:**
+```typescript
+// ✅ Good: Load config from database
+const configRes = await fetch(`/api/chat-config/${chatName}`);
+const { config } = await configRes.json();
+
+// Apply theme, system instruction, etc.
+applyTheme(config.themeId || "default");
+```
+
+### Security Considerations
+
+**Environment Variables:**
+```bash
+# .env.local (never commit)
+GOOGLE_AI_API_KEY=...
+TURSO_DATABASE_URL=...
+TURSO_AUTH_TOKEN=...
+```
+
+**CORS Configuration:**
+- All `/api/*` routes have CORS enabled (Access-Control-Allow-Origin: *)
+- `/embed/*` routes allow iframe embedding (X-Frame-Options: ALLOWALL)
+- No authentication system currently implemented
+
+---
+
+## 5. TESTING & QUALITY
+
+### Build Validation
+
+```bash
+# Always test build before committing major changes
+npm run build
+
+# Check for:
+# ✓ TypeScript errors
+# ✓ ESLint warnings
+# ✓ Build time (should be < 5s for incremental)
+```
+
+### Code Quality Checklist
+
+Before committing:
+- [ ] Build succeeds without errors
+- [ ] No TypeScript 'any' types introduced
+- [ ] All imports use @ alias (not relative from root)
+- [ ] German text for user-facing messages
+- [ ] Error handling with user-friendly messages
+- [ ] Non-blocking analytics where applicable
+- [ ] Mobile-responsive design tested
+
+---
+
+## 6. DEPLOYMENT
+
+### Production Build
+
+```bash
+# Local production build
+npm run build
+npm run start
+
+# Deployment (Turso database + Vercel/similar)
+# 1. Set environment variables
+# 2. Run migrations: npx drizzle-kit push
+# 3. Deploy with npm run build
+```
+
+### Database Migrations
+
+```bash
+# After schema changes in lib/schema.ts
+npx drizzle-kit generate  # Generate migration
+npx drizzle-kit push      # Apply to database
+```
+
+---
+
+## 7. COMMON PITFALLS TO AVOID
+
+### Frontend
+
+❌ **Don't:** Use 'any' types
+✅ **Do:** Define proper interfaces
+
+❌ **Don't:** Create global components for feature-specific UI
+✅ **Do:** Co-locate components in feature directories
+
+❌ **Don't:** Inline 100+ lines of JSX in one component
+✅ **Do:** Extract reusable components (aim for < 150 lines per component)
+
+### Backend
+
+❌ **Don't:** Let analytics errors break user flow
+✅ **Do:** Wrap analytics in try-catch with non-blocking error logging
+
+❌ **Don't:** Use string concatenation for SQL queries
+✅ **Do:** Use Drizzle's query builder with parameterized queries
+
+❌ **Don't:** Expose internal error details to users
+✅ **Do:** Provide friendly German error messages
+
+### Refactoring
+
+❌ **Don't:** Refactor the entire codebase at once
+✅ **Do:** Phase-by-phase with builds and commits after each phase
+
+❌ **Don't:** Optimize prematurely
+✅ **Do:** Focus on readability and maintainability first
+
+---
+
+## 8. USEFUL COMMANDS
+
+```bash
+# Development
+npm run dev                          # Start dev server
+npm run build                        # Production build
+npm run lint                         # ESLint check
+
+# Database
+npx drizzle-kit studio              # Visual database explorer
+npx drizzle-kit generate            # Generate migration
+npx drizzle-kit push                # Apply schema changes
+
+# Scripts (in /scripts directory)
+npx tsx scripts/delete-all-files.ts # Clean up Gemini files
+npx tsx scripts/migrate-configs-to-db.ts # Migrate configs
+```
+
+---
+
+## Summary
+
+This project follows a **simple, pragmatic approach**:
+- Local state over complex state management
+- Co-located components over premature abstraction
+- Drizzle ORM over raw SQL
+- Phase-by-phase refactoring over big rewrites
+- User experience over technical perfection
+
+When in doubt, **prefer simplicity and readability** over cleverness.
