@@ -20,10 +20,11 @@ export async function GET() {
       uploadType: dbConfig.uploadType,
       themeId: dbConfig.themeId,
       fileSearchStoreName: dbConfig.fileSearchStoreName || undefined,
-      files: JSON.parse(dbConfig.files),
-      sitemapUrls: dbConfig.sitemapUrls ? JSON.parse(dbConfig.sitemapUrls) : undefined,
-      allowedDomains: dbConfig.allowedDomains ? JSON.parse(dbConfig.allowedDomains) : undefined,
+      files: dbConfig.files && dbConfig.files.trim() !== "" ? JSON.parse(dbConfig.files) : [],
+      sitemapUrls: dbConfig.sitemapUrls && dbConfig.sitemapUrls.trim() !== "" ? JSON.parse(dbConfig.sitemapUrls) : undefined,
+      allowedDomains: dbConfig.allowedDomains && dbConfig.allowedDomains.trim() !== "" ? JSON.parse(dbConfig.allowedDomains) : undefined,
       systemInstruction: dbConfig.systemInstruction || undefined,
+      aiAnalysisEnabled: dbConfig.aiAnalysisEnabled ?? false,
       createdAt: dbConfig.createdAt,
     }));
 
