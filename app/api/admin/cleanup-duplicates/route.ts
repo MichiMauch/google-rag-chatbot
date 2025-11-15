@@ -66,10 +66,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Helper function to extract metadata value from Google's array format
+    const getMetadataValue = (metadata: any[], key: string): string | null => {
+      if (!Array.isArray(metadata)) return null;
+      const item = metadata.find((m: any) => m.key === key);
+      return item?.stringValue || null;
+    };
+
     // Debug mode: return detailed info without deleting
     if (debug) {
-      const withUrl = documents.filter(d => d.customMetadata?.url);
-      const withoutUrl = documents.filter(d => !d.customMetadata?.url);
+      const withUrl = documents.filter(d => getMetadataValue(d.customMetadata, "url"));
+      const withoutUrl = documents.filter(d => !getMetadataValue(d.customMetadata, "url"));
 
       return NextResponse.json({
         debug: true,
@@ -80,8 +87,8 @@ export async function POST(request: NextRequest) {
           name: d.name,
           displayName: d.displayName,
           createTime: d.createTime,
-          hasUrlMetadata: !!d.customMetadata?.url,
-          url: d.customMetadata?.url || null,
+          hasUrlMetadata: !!getMetadataValue(d.customMetadata, "url"),
+          url: getMetadataValue(d.customMetadata, "url"),
           allMetadata: d.customMetadata || null
         })),
         documentsWithoutUrl: withoutUrl.slice(0, 10).map(d => ({
@@ -96,7 +103,7 @@ export async function POST(request: NextRequest) {
     const documentsByUrl: Map<string, typeof documents> = new Map();
 
     for (const doc of documents) {
-      const url = doc.customMetadata?.url;
+      const url = getMetadataValue(doc.customMetadata, "url");
       if (!url) continue; // Skip if no URL metadata
 
       if (!documentsByUrl.has(url)) {
