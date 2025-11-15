@@ -54,6 +54,11 @@ import ChartContainer from "./components/shared/ChartContainer";
 import EmptyState from "./components/shared/EmptyState";
 import TabNavigation from "./components/shared/TabNavigation";
 
+// Import stats grid components
+import ChatStatsGrid from "./components/stats/ChatStatsGrid";
+import FeedbackStatsGrid from "./components/stats/FeedbackStatsGrid";
+import SentimentStatsGrid from "./components/stats/SentimentStatsGrid";
+
 export default function ChatDashboardPage() {
   const params = useParams();
   const router = useRouter();
@@ -349,25 +354,7 @@ export default function ChatDashboardPage() {
             {aiInsights && aiInsights.totalAnalyzed > 0 ? (
               <>
                 {/* Sentiment Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  {aiInsights.sentimentData.map((item, index) => {
-                    const colors = {
-                      Positiv: { bg: "bg-green-50", text: "text-green-600", border: "border-green-200" },
-                      Neutral: { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
-                      Negativ: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
-                    };
-                    const color = colors[item.sentiment as keyof typeof colors];
-                    return (
-                      <div key={index} className={`${color.bg} border ${color.border} rounded-lg shadow p-6`}>
-                        <h3 className={`text-sm font-medium ${color.text} mb-2`}>{item.sentiment}</h3>
-                        <div className="flex items-baseline gap-2">
-                          <span className={`text-3xl font-bold ${color.text}`}>{item.count}</span>
-                          <span className={`text-lg ${color.text}`}>({item.percentage}%)</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <SentimentStatsGrid sentimentData={aiInsights.sentimentData} />
 
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -443,67 +430,11 @@ export default function ChatDashboardPage() {
         ) : (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <StatsCard
-                icon={Users}
-                iconColor="text-blue-500"
-                value={stats.totalSessions}
-                label="Sessions"
-                subtitle={`${stats.activeSessions} aktiv (24h)`}
-              />
-
-              <StatsCard
-                icon={MessageSquare}
-                iconColor="text-green-500"
-                value={stats.totalMessages}
-                label="Fragen"
-              />
-
-              <StatsCard
-                icon={Clock}
-                iconColor="text-purple-500"
-                value={stats.avgResponseTime ? `${(stats.avgResponseTime / 1000).toFixed(2)}s` : "-"}
-                label="⌀ Antwortzeit"
-              />
-
-              <StatsCard
-                icon={AlertCircle}
-                iconColor={stats.errorRate > 5 ? "text-red-500" : "text-orange-500"}
-                value={`${stats.errorRate.toFixed(1)}%`}
-                valueColor={stats.errorRate > 5 ? "text-red-600" : "text-gray-900"}
-                label="Fehlerrate"
-                subtitle={`${stats.errorCount} Fehler`}
-              />
-            </div>
+            <ChatStatsGrid stats={stats} />
 
             {/* Feedback Stats Cards */}
             {feedbackStats && feedbackStats.totalFeedback > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <StatsCard
-                  icon={ThumbsUp}
-                  iconColor="text-green-500"
-                  value={feedbackStats.thumbsUp}
-                  valueColor="text-green-600"
-                  label="Thumbs Up"
-                />
-
-                <StatsCard
-                  icon={ThumbsDown}
-                  iconColor="text-red-500"
-                  value={feedbackStats.thumbsDown}
-                  valueColor="text-red-600"
-                  label="Thumbs Down"
-                />
-
-                <StatsCard
-                  icon={Smile}
-                  iconColor="text-blue-500"
-                  value={`${feedbackStats.satisfactionScore}%`}
-                  valueColor="text-blue-600"
-                  label="Zufriedenheit"
-                  subtitle={`${feedbackStats.totalFeedback} Bewertungen`}
-                />
-              </div>
+              <FeedbackStatsGrid feedbackStats={feedbackStats} />
             )}
 
             {/* Charts Row */}
