@@ -160,7 +160,7 @@ export default function AnalyticsDashboard() {
             <MessageSquare className="w-5 h-5 text-green-500" />
             <span className="text-2xl font-bold text-gray-900">{stats.totalMessages}</span>
           </div>
-          <p className="text-sm text-gray-600">Nachrichten</p>
+          <p className="text-sm text-gray-600">Fragen</p>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">

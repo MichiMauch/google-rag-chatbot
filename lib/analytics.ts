@@ -153,10 +153,11 @@ export async function getDashboardStats() {
       .from(chatSessions);
     const totalSessions = totalSessionsResult[0]?.count || 0;
 
-    // Total messages
+    // Total messages (only user questions)
     const totalMessagesResult = await db
       .select({ count: sql<number>`count(*)` })
-      .from(chatMessages);
+      .from(chatMessages)
+      .where(eq(chatMessages.role, "user"));
     const totalMessages = totalMessagesResult[0]?.count || 0;
 
     // Active sessions (last 24h)
@@ -309,12 +310,15 @@ export async function getChatStats(chatName: string) {
       .where(eq(chatSessions.chatName, chatName));
     const totalSessions = totalSessionsResult[0]?.count || 0;
 
-    // Total messages for this chat
+    // Total messages for this chat (only user questions)
     const totalMessagesResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
-      .where(eq(chatSessions.chatName, chatName));
+      .where(and(
+        eq(chatSessions.chatName, chatName),
+        eq(chatMessages.role, "user")
+      ));
     const totalMessages = totalMessagesResult[0]?.count || 0;
 
     // Active sessions (last 24h)
