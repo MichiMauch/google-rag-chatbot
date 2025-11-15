@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       // Use REST API for pagination
       do {
         pageCount++;
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${process.env.GOOGLE_AI_API_KEY}`;
+        const apiUrl: string = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${process.env.GOOGLE_AI_API_KEY}`;
 
         const response = await fetch(apiUrl);
 
