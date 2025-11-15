@@ -37,6 +37,7 @@ export async function GET(
       sitemapUrls: dbConfig.sitemapUrls ? JSON.parse(dbConfig.sitemapUrls) : undefined,
       allowedDomains: dbConfig.allowedDomains ? JSON.parse(dbConfig.allowedDomains) : undefined,
       systemInstruction: dbConfig.systemInstruction || undefined,
+      aiAnalysisEnabled: dbConfig.aiAnalysisEnabled ?? false,
       createdAt: dbConfig.createdAt,
     };
 

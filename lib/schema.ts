@@ -207,6 +207,9 @@ export const chatConfigs = sqliteTable(
 
     systemInstruction: text("system_instruction"),
 
+    // AI Analysis
+    aiAnalysisEnabled: integer("ai_analysis_enabled", { mode: "boolean" }).default(false),
+
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

@@ -3,6 +3,9 @@ import { ai } from "@/lib/gemini";
 import { createPartFromUri, createUserContent } from "@google/genai";
 import { getOrCreateSession, logChatMessage, updateMessageAnalysis } from "@/lib/analytics";
 import { analyzeUserMessageWithRetry } from "@/lib/ai-analysis";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 // Only use gemini-2.5-flash - no fallback to other models
 const MODEL = "gemini-2.5-flash";
@@ -110,18 +113,32 @@ export async function POST(request: NextRequest) {
         });
         console.log(`[Analytics] User message logged for session: ${sessionId}`);
 
-        // Perform AI analysis asynchronously (non-blocking)
-        if (userMessageId) {
-          analyzeUserMessageWithRetry(message)
-            .then((analysis) => {
-              if (analysis) {
-                console.log(`[AI Analysis] Sentiment: ${analysis.sentiment}, Categories: ${analysis.categories.join(", ")}, Urgency: ${analysis.urgency}`);
-                return updateMessageAnalysis(userMessageId, analysis);
-              }
-            })
-            .catch((error) => {
-              console.error("[AI Analysis] Error (non-blocking):", error);
-            });
+        // Check if AI analysis is enabled for this chat
+        if (userMessageId && chatName) {
+          // Fetch chat config to check if AI analysis is enabled
+          const chatConfigResult = await db
+            .select()
+            .from(chatConfigs)
+            .where(eq(chatConfigs.chatName, chatName))
+            .limit(1);
+
+          const aiAnalysisEnabled = chatConfigResult[0]?.aiAnalysisEnabled ?? false;
+
+          // Perform AI analysis asynchronously (non-blocking) only if enabled
+          if (aiAnalysisEnabled) {
+            analyzeUserMessageWithRetry(message)
+              .then((analysis) => {
+                if (analysis) {
+                  console.log(`[AI Analysis] Sentiment: ${analysis.sentiment}, Categories: ${analysis.categories.join(", ")}, Urgency: ${analysis.urgency}`);
+                  return updateMessageAnalysis(userMessageId, analysis);
+                }
+              })
+              .catch((error) => {
+                console.error("[AI Analysis] Error (non-blocking):", error);
+              });
+          } else {
+            console.log(`[AI Analysis] Skipped - AI analysis is disabled for chat: ${chatName}`);
+          }
         }
       } catch (analyticsError) {
         console.error("Analytics error (non-blocking):", analyticsError);
