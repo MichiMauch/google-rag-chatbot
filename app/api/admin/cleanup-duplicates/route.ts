@@ -48,26 +48,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all documents from the file search store with explicit pagination
+    // Get all documents from the file search store
+    console.log(`Fetching documents from: ${fileSearchStoreName}`);
+    const documentsIterator = await ai.fileSearchStores.documents.list({
+      parent: fileSearchStoreName,
+    });
+
+    // Collect all documents
     const documents: any[] = [];
-    let pageToken: string | undefined = undefined;
-
-    do {
-      const documentsIterator = await ai.fileSearchStores.documents.list({
-        parent: fileSearchStoreName,
-        pageSize: 100, // Request up to 100 docs per page
-        pageToken: pageToken
-      });
-
-      for await (const doc of documentsIterator) {
-        documents.push(doc);
+    let count = 0;
+    for await (const doc of documentsIterator) {
+      documents.push(doc);
+      count++;
+      if (count % 50 === 0) {
+        console.log(`Fetched ${count} documents so far...`);
       }
+    }
 
-      // Get next page token if available
-      pageToken = (documentsIterator as any).nextPageToken;
-    } while (pageToken);
-
-    console.log(`Fetched ${documents.length} documents from ${fileSearchStoreName}`);
+    console.log(`Total documents fetched: ${documents.length}`);
 
     if (documents.length === 0) {
       return NextResponse.json(
