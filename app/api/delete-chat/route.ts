@@ -24,18 +24,33 @@ export async function POST(request: NextRequest) {
     console.log(`Deleting File Search Store for chat: ${chatName}`);
     console.log(`Store name: ${fileSearchStoreName}`);
 
-    // First, delete all documents from the store
+    // First, delete all documents from the store using pagination
     let storeDeleted = false;
     try {
-      console.log(`Fetching all documents from store...`);
-      const documentsIterator = await ai.fileSearchStores.documents.list({
-        parent: fileSearchStoreName,
-      });
+      console.log(`Fetching all documents from store using REST API...`);
 
       const documents: any[] = [];
-      for await (const doc of documentsIterator) {
-        documents.push(doc);
-      }
+      let nextPageToken: string | undefined = undefined;
+      let pageCount = 0;
+
+      // Use REST API for pagination
+      do {
+        pageCount++;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}&key=${process.env.GOOGLE_AI_API_KEY}`;
+
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch documents: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const pageDocs = data.documents || [];
+        documents.push(...pageDocs);
+        nextPageToken = data.nextPageToken;
+
+        console.log(`Page ${pageCount}: Fetched ${pageDocs.length} documents (total: ${documents.length})`);
+      } while (nextPageToken);
 
       console.log(`Found ${documents.length} documents to delete`);
 
@@ -48,6 +63,11 @@ export async function POST(request: NextRequest) {
             config: { force: true }
           });
           deletedCount++;
+
+          // Log progress every 10 documents
+          if (deletedCount % 10 === 0) {
+            console.log(`Progress: ${deletedCount}/${documents.length} documents deleted`);
+          }
         } catch (docError: any) {
           console.warn(`Failed to delete document ${doc.name}:`, docError.message);
           // Continue with other documents even if one fails
