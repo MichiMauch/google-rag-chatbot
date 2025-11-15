@@ -109,8 +109,6 @@ export default function AdminPage() {
     setShowDeletionLog(true);
 
     try {
-      setDeletionLogs((prev) => [...prev, `🗑️ Lösche Chat "${chatName}"...`]);
-
       const response = await fetch("/api/delete-chat", {
         method: "POST",
         headers: {
@@ -123,21 +121,54 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Fehler beim Löschen");
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim Löschen");
       }
 
-      const data = await response.json();
+      // Stream the response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      // Add log messages for each step
-      setDeletionLogs((prev) => [...prev, `✅ File Search Store gelöscht`]);
-      setDeletionLogs((prev) => [...prev, `✅ Datenbank-Konfiguration gelöscht`]);
-      setDeletionLogs((prev) => [...prev, `\n🎉 ${data.message}`]);
-      setDeletionComplete(true);
+      if (!reader) {
+        throw new Error("Kein Response Body");
+      }
 
-      // Reload stats after successful deletion
-      await loadStats();
-      toast.success(`"${displayName}" wurde erfolgreich gelöscht`);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value);
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const event = JSON.parse(line.slice(6));
+
+              if (event.message) {
+                setDeletionLogs((prev) => [...prev, event.message]);
+              }
+
+              if (event.type === "progress" && event.current) {
+                setDeletionProgress({ current: event.current, total: event.total || 0 });
+              }
+
+              if (event.type === "complete") {
+                setDeletionComplete(true);
+                // Reload stats after successful deletion
+                await loadStats();
+                toast.success(`"${displayName}" wurde erfolgreich gelöscht`);
+              }
+
+              if (event.type === "error") {
+                toast.error(event.message || "Fehler beim Löschen", { duration: 6000 });
+              }
+            } catch (e) {
+              console.error("Error parsing SSE event:", e);
+            }
+          }
+        }
+      }
     } catch (err: any) {
       console.error("Error deleting store:", err);
       setDeletionLogs((prev) => [...prev, `\n❌ Fehler: ${err.message}`]);

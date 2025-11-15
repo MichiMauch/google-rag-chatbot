@@ -10,129 +10,188 @@ import {
 } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 minutes for large deletions
+
+// Event types for streaming
+type LogEvent = {
+  type: "info" | "progress" | "batch_start" | "batch_complete" | "complete" | "error";
+  message?: string;
+  current?: number;
+  total?: number;
+  batch?: number;
+};
+
 export async function POST(request: NextRequest) {
+  const encoder = new TextEncoder();
+
+  // Parse request body
+  let body;
   try {
-    const { chatName, fileSearchStoreName } = await request.json();
+    body = await request.json();
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-    if (!chatName || !fileSearchStoreName) {
-      return NextResponse.json(
-        { error: "Chat-Name und File Search Store Name erforderlich" },
-        { status: 400 }
-      );
-    }
+  const { chatName, fileSearchStoreName } = body;
 
-    console.log(`Deleting File Search Store for chat: ${chatName}`);
-    console.log(`Store name: ${fileSearchStoreName}`);
+  if (!chatName || !fileSearchStoreName) {
+    return NextResponse.json(
+      { error: "Chat-Name und File Search Store Name erforderlich" },
+      { status: 400 }
+    );
+  }
 
-    // First, delete all documents from the store
-    // Note: We need to delete documents in batches since there might be many
-    let storeDeleted = false;
-    try {
-      console.log(`Deleting all documents from store...`);
+  // Create SSE stream
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendLog = (event: LogEvent) => {
+        const data = `data: ${JSON.stringify(event)}\n\n`;
+        controller.enqueue(encoder.encode(data));
+      };
 
-      let totalDeleted = 0;
-      let batchCount = 0;
-      let hasMoreDocuments = true;
+      try {
+        sendLog({ type: "info", message: `🗑️ Lösche Chat "${chatName}"...` });
+        sendLog({ type: "info", message: `📦 Store: ${fileSearchStoreName}` });
 
-      // Keep deleting documents until the store is empty
-      while (hasMoreDocuments) {
-        batchCount++;
-        console.log(`Batch ${batchCount}: Fetching documents...`);
+        // First, delete all documents from the store
+        // Note: We need to delete documents in batches since there might be many
+        let storeDeleted = false;
 
-        const documentsIterator = await ai.fileSearchStores.documents.list({
-          parent: fileSearchStoreName,
-        });
+        sendLog({ type: "info", message: "📄 Lösche Dokumente aus dem Store..." });
 
-        const documents: any[] = [];
-        for await (const doc of documentsIterator) {
-          documents.push(doc);
-        }
+        let totalDeleted = 0;
+        let batchCount = 0;
+        let hasMoreDocuments = true;
 
-        console.log(`Batch ${batchCount}: Found ${documents.length} documents`);
+        // Keep deleting documents until the store is empty
+        while (hasMoreDocuments) {
+          batchCount++;
+          sendLog({ type: "batch_start", batch: batchCount, message: `Batch ${batchCount}: Lade Dokumente...` });
 
-        if (documents.length === 0) {
-          hasMoreDocuments = false;
-          break;
-        }
+          const documentsIterator = await ai.fileSearchStores.documents.list({
+            parent: fileSearchStoreName,
+          });
 
-        // Delete all documents in this batch
-        for (const doc of documents) {
-          try {
-            await ai.fileSearchStores.documents.delete({
-              name: doc.name,
-              config: { force: true }
-            });
-            totalDeleted++;
+          const documents: any[] = [];
+          for await (const doc of documentsIterator) {
+            documents.push(doc);
+          }
 
-            // Log progress every 10 documents
-            if (totalDeleted % 10 === 0) {
-              console.log(`Progress: ${totalDeleted} documents deleted`);
+          sendLog({ type: "info", message: `   📋 ${documents.length} Dokumente gefunden` });
+
+          if (documents.length === 0) {
+            hasMoreDocuments = false;
+            break;
+          }
+
+          // Delete all documents in this batch
+          for (const doc of documents) {
+            try {
+              await ai.fileSearchStores.documents.delete({
+                name: doc.name,
+                config: { force: true }
+              });
+              totalDeleted++;
+
+              // Log progress every 10 documents
+              if (totalDeleted % 10 === 0) {
+                sendLog({
+                  type: "progress",
+                  current: totalDeleted,
+                  message: `   🗑️ ${totalDeleted} Dokumente gelöscht...`
+                });
+              }
+            } catch (docError: any) {
+              sendLog({ type: "info", message: `   ⚠️ Fehler beim Löschen eines Dokuments (überspringe)` });
+              // Continue with other documents even if one fails
             }
-          } catch (docError: any) {
-            console.warn(`Failed to delete document ${doc.name}:`, docError.message);
-            // Continue with other documents even if one fails
+          }
+
+          sendLog({
+            type: "batch_complete",
+            batch: batchCount,
+            message: `   ✅ Batch ${batchCount} abgeschlossen (${totalDeleted} gesamt gelöscht)`
+          });
+        }
+
+        sendLog({ type: "info", message: `✅ Alle Dokumente gelöscht (${totalDeleted} total)` });
+
+        // Now delete the empty store
+        sendLog({ type: "info", message: "🗑️ Lösche File Search Store..." });
+
+        try {
+          await ai.fileSearchStores.delete({
+            name: fileSearchStoreName,
+          });
+          sendLog({ type: "info", message: "✅ File Search Store gelöscht" });
+          storeDeleted = true;
+        } catch (error: any) {
+          if (error.status === 404 || error.message?.includes("not found")) {
+            sendLog({ type: "info", message: "ℹ️ Store existierte bereits nicht mehr" });
+            storeDeleted = true;
+          } else {
+            throw error;
           }
         }
 
-        console.log(`Batch ${batchCount} complete. Total deleted so far: ${totalDeleted}`);
-      }
+        // Always delete from database (even if store didn't exist)
+        sendLog({ type: "info", message: "💾 Lösche Datenbank-Einträge..." });
 
-      console.log(`All documents deleted. Total: ${totalDeleted}`);
+        try {
+          // Delete analytics data first (no cascade dependencies)
+          await db.delete(chatAnalytics).where(eq(chatAnalytics.chatName, chatName));
+          sendLog({ type: "info", message: "   ✅ Analytics-Daten gelöscht" });
 
-      // Now delete the empty store
-      await ai.fileSearchStores.delete({
-        name: fileSearchStoreName,
-      });
-      console.log(`File Search Store deleted successfully: ${fileSearchStoreName}`);
-      storeDeleted = true;
-    } catch (error: any) {
-      if (error.status === 404 || error.message?.includes("not found")) {
-        console.log(`File Search Store not found (already deleted): ${fileSearchStoreName}`);
-        storeDeleted = true; // Consider it successful if already deleted
-      } else {
-        console.error(`Error deleting File Search Store:`, error);
-        throw error; // Re-throw other errors
+          // Delete scraped pages
+          await db.delete(scrapedPages).where(eq(scrapedPages.chatName, chatName));
+          sendLog({ type: "info", message: "   ✅ Gescrapte Seiten gelöscht" });
+
+          // Delete update history (this will cascade delete pageUpdateLogs)
+          await db.delete(updateHistory).where(eq(updateHistory.chatName, chatName));
+          sendLog({ type: "info", message: "   ✅ Update-Historie gelöscht" });
+
+          // Delete chat sessions (this will cascade delete chatMessages)
+          await db.delete(chatSessions).where(eq(chatSessions.chatName, chatName));
+          sendLog({ type: "info", message: "   ✅ Chat-Sessions gelöscht" });
+
+          // Finally, delete config
+          await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));
+          sendLog({ type: "info", message: "   ✅ Chat-Konfiguration gelöscht" });
+        } catch (error: any) {
+          sendLog({ type: "info", message: `   ⚠️ Datenbankfehler (fortfahren): ${error.message}` });
+          // Don't fail the request if database deletion fails
+        }
+
+        sendLog({
+          type: "complete",
+          message: storeDeleted
+            ? `🎉 Chat "${chatName}" erfolgreich gelöscht!`
+            : `🎉 Chat-Konfiguration gelöscht (Store existierte bereits nicht mehr)`
+        });
+
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
+        console.error("Delete chat error:", error);
+        sendLog({
+          type: "error",
+          message: `❌ Fehler beim Löschen: ${errorMessage}`
+        });
+      } finally {
+        controller.close();
       }
     }
+  });
 
-    // Always delete from database (even if store didn't exist)
-    try {
-      // Delete analytics data first (no cascade dependencies)
-      await db.delete(chatAnalytics).where(eq(chatAnalytics.chatName, chatName));
-      console.log(`Analytics data deleted for: ${chatName}`);
-
-      // Delete scraped pages
-      await db.delete(scrapedPages).where(eq(scrapedPages.chatName, chatName));
-      console.log(`Scraped pages deleted for: ${chatName}`);
-
-      // Delete update history (this will cascade delete pageUpdateLogs)
-      await db.delete(updateHistory).where(eq(updateHistory.chatName, chatName));
-      console.log(`Update history deleted for: ${chatName}`);
-
-      // Delete chat sessions (this will cascade delete chatMessages)
-      await db.delete(chatSessions).where(eq(chatSessions.chatName, chatName));
-      console.log(`Chat sessions deleted for: ${chatName}`);
-
-      // Finally, delete config
-      await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));
-      console.log(`Config deleted from database: ${chatName}`);
-    } catch (error: any) {
-      console.warn(`Could not delete data for ${chatName}:`, error.message);
-      // Don't fail the request if database deletion fails
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: storeDeleted
-        ? "Chat erfolgreich gelöscht"
-        : "Chat-Konfiguration gelöscht (Store existierte bereits nicht mehr)",
-    });
-  } catch (error: any) {
-    console.error("Delete chat error:", error);
-
-    return NextResponse.json(
-      { error: error.message || "Fehler beim Löschen des Chats" },
-      { status: 500 }
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 }
