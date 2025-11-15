@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     do {
       pageCount++;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
+      const apiUrl: string = `https://generativelanguage.googleapis.com/v1beta/${fileSearchStoreName}/documents?pageSize=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
 
       const response = await fetch(apiUrl, {
         headers: {
