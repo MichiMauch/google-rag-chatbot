@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { createUpdateHistory, performIncrementalUpdate, type LogEvent } from "@/lib/contentUpdater";
-import fs from "fs/promises";
-import path from "path";
+import { db } from "@/lib/db";
+import { chatConfigs } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,14 +52,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Get chat config to find file search store
-  const configPath = path.join(process.cwd(), "data", "chat-configs", `${chatName}.json`);
+  // Get chat config from database
+  const configs = await db
+    .select()
+    .from(chatConfigs)
+    .where(eq(chatConfigs.chatName, chatName))
+    .limit(1);
 
-  let chatConfig;
-  try {
-    const configContent = await fs.readFile(configPath, "utf-8");
-    chatConfig = JSON.parse(configContent);
-  } catch (error) {
+  if (configs.length === 0) {
     return new Response(
       JSON.stringify({ error: `Chat config not found for: ${chatName}` }),
       {
@@ -68,7 +69,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!chatConfig.fileSearchStoreName) {
+  const chatConfig = configs[0];
+  const fileSearchStoreName = chatConfig.fileSearchStoreName;
+
+  if (!fileSearchStoreName) {
     return new Response(
       JSON.stringify({ error: "Chat does not have a file search store" }),
       {
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
         await performIncrementalUpdate(
           chatName,
           sitemapUrl,
-          chatConfig.fileSearchStoreName,
+          fileSearchStoreName,
           updateId,
           triggeredBy,
           sendLog  // Pass the log callback
