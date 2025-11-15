@@ -105,6 +105,14 @@ interface TemporalData {
   totalMessages: number;
 }
 
+interface AIInsights {
+  sentimentData: { sentiment: string; count: number; percentage: number }[];
+  categoryData: { category: string; count: number }[];
+  urgencyData: { urgency: string; count: number }[];
+  timelineData: { date: string; positive: number; neutral: number; negative: number }[];
+  totalAnalyzed: number;
+}
+
 interface ChatConfig {
   chatName: string;
   displayName: string;
@@ -125,7 +133,7 @@ interface ChatConfig {
   createdAt: number;
 }
 
-type TabType = "analytics" | "temporal" | "settings";
+type TabType = "analytics" | "temporal" | "ai-insights" | "settings";
 
 export default function ChatDashboardPage() {
   const params = useParams();
@@ -135,7 +143,7 @@ export default function ChatDashboardPage() {
 
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabType>(
-    (tabParam === "settings" ? "settings" : tabParam === "temporal" ? "temporal" : "analytics") as TabType
+    (tabParam === "settings" ? "settings" : tabParam === "temporal" ? "temporal" : tabParam === "ai-insights" ? "ai-insights" : "analytics") as TabType
   );
 
   const [loading, setLoading] = useState(true);
@@ -150,6 +158,7 @@ export default function ChatDashboardPage() {
   const [popularQuestions, setPopularQuestions] = useState<PopularQuestion[]>([]);
   const [chatConfig, setChatConfig] = useState<ChatConfig | null>(null);
   const [temporalData, setTemporalData] = useState<TemporalData | null>(null);
+  const [aiInsights, setAIInsights] = useState<AIInsights | null>(null);
 
   // Update URL when tab changes
   const handleTabChange = (tab: TabType) => {
@@ -168,26 +177,28 @@ export default function ChatDashboardPage() {
         setError(null);
 
         // Fetch all data in parallel
-        const [statsRes, feedbackRes, sessionsRes, chartDataRes, configRes, temporalRes] = await Promise.all([
+        const [statsRes, feedbackRes, sessionsRes, chartDataRes, configRes, temporalRes, aiInsightsRes] = await Promise.all([
           fetch(`/api/analytics/chat/${chatName}/stats`),
           fetch(`/api/analytics/chat/${chatName}/feedback`),
           fetch(`/api/analytics/chat/${chatName}/sessions?limit=50`),
           fetch(`/api/analytics/chat/${chatName}/chart-data?days=30`),
           fetch(`/api/chat-config/${chatName}`),
           fetch(`/api/analytics/chat/${chatName}/temporal?days=30`),
+          fetch(`/api/analytics/chat/${chatName}/ai-insights?days=30`),
         ]);
 
-        if (!statsRes.ok || !feedbackRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok || !temporalRes.ok) {
+        if (!statsRes.ok || !feedbackRes.ok || !sessionsRes.ok || !chartDataRes.ok || !configRes.ok || !temporalRes.ok || !aiInsightsRes.ok) {
           throw new Error("Fehler beim Laden der Chat-Daten");
         }
 
-        const [statsData, feedbackData, sessionsData, chartData, configData, temporalDataResult] = await Promise.all([
+        const [statsData, feedbackData, sessionsData, chartData, configData, temporalDataResult, aiInsightsData] = await Promise.all([
           statsRes.json(),
           feedbackRes.json(),
           sessionsRes.json(),
           chartDataRes.json(),
           configRes.json(),
           temporalRes.json(),
+          aiInsightsRes.json(),
         ]);
 
         setStats(statsData);
@@ -198,6 +209,7 @@ export default function ChatDashboardPage() {
         setPopularQuestions(chartData.popularQuestions);
         setChatConfig(configData.config);
         setTemporalData(temporalDataResult);
+        setAIInsights(aiInsightsData);
       } catch (err: any) {
         console.error("Error loading chat data:", err);
         setError(err.message || "Ein Fehler ist aufgetreten");
@@ -302,6 +314,17 @@ export default function ChatDashboardPage() {
             >
               <Clock className="w-4 h-4" />
               <span>Zeitliche Muster</span>
+            </button>
+            <button
+              onClick={() => handleTabChange("ai-insights")}
+              className={`${
+                activeTab === "ai-insights"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span>AI-Analyse</span>
             </button>
             <button
               onClick={() => handleTabChange("settings")}
@@ -461,6 +484,122 @@ export default function ChatDashboardPage() {
               <div className="bg-white rounded-lg shadow p-6">
                 <p className="text-gray-500 text-sm text-center py-8">
                   Keine Daten für zeitliche Muster verfügbar (letzte 30 Tage)
+                </p>
+              </div>
+            )}
+          </>
+        ) : activeTab === "ai-insights" ? (
+          <>
+            {aiInsights && aiInsights.totalAnalyzed > 0 ? (
+              <>
+                {/* Sentiment Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {aiInsights.sentimentData.map((item, index) => {
+                    const colors = {
+                      Positiv: { bg: "bg-green-50", text: "text-green-600", border: "border-green-200" },
+                      Neutral: { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
+                      Negativ: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
+                    };
+                    const color = colors[item.sentiment as keyof typeof colors];
+                    return (
+                      <div key={index} className={`${color.bg} border ${color.border} rounded-lg shadow p-6`}>
+                        <h3 className={`text-sm font-medium ${color.text} mb-2`}>{item.sentiment}</h3>
+                        <div className="flex items-baseline gap-2">
+                          <span className={`text-3xl font-bold ${color.text}`}>{item.count}</span>
+                          <span className={`text-lg ${color.text}`}>({item.percentage}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Sentiment Pie Chart */}
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <Smile className="w-5 h-5" />
+                      <span>Sentiment-Verteilung</span>
+                    </h2>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie data={aiInsights.sentimentData} dataKey="count" nameKey="sentiment" cx="50%" cy="50%" outerRadius={100} label>
+                          {aiInsights.sentimentData.map((entry, index) => {
+                            const colors = { Positiv: "#10b981", Neutral: "#3b82f6", Negativ: "#ef4444" };
+                            return <Cell key={`cell-${index}`} fill={colors[entry.sentiment as keyof typeof colors]} />;
+                          })}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Category Bar Chart */}
+                  {aiInsights.categoryData.length > 0 && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <BarChart3 className="w-5 h-5" />
+                        <span>Top Kategorien</span>
+                      </h2>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={aiInsights.categoryData.slice(0, 8)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 11 }} />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#8b5cf6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                {/* Timeline Chart */}
+                {aiInsights.timelineData.length > 0 && (
+                  <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Sentiment über Zeit</span>
+                    </h2>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={aiInsights.timelineData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="positive" stroke="#10b981" name="Positiv" strokeWidth={2} />
+                        <Line type="monotone" dataKey="neutral" stroke="#3b82f6" name="Neutral" strokeWidth={2} />
+                        <Line type="monotone" dataKey="negative" stroke="#ef4444" name="Negativ" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Urgency Bar Chart */}
+                {aiInsights.urgencyData.length > 0 && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <AlertCircle className="w-5 h-5" />
+                      <span>Dringlichkeit</span>
+                    </h2>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={aiInsights.urgencyData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="urgency" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#f59e0b" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <p className="text-gray-500 text-sm text-center py-8">
+                  Keine AI-Analysedaten verfügbar. Stellen Sie Fragen im Chat, um Sentiment-Analysen zu generieren.
                 </p>
               </div>
             )}

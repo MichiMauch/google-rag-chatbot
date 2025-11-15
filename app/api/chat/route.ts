@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 import { createPartFromUri, createUserContent } from "@google/genai";
-import { getOrCreateSession, logChatMessage } from "@/lib/analytics";
+import { getOrCreateSession, logChatMessage, updateMessageAnalysis } from "@/lib/analytics";
+import { analyzeUserMessageWithRetry } from "@/lib/ai-analysis";
 
 // Only use gemini-2.5-flash - no fallback to other models
 const MODEL = "gemini-2.5-flash";
@@ -102,12 +103,26 @@ export async function POST(request: NextRequest) {
         console.log(`[Analytics] Session created: ${sessionId}`);
 
         // Log user message
-        await logChatMessage({
+        const userMessageId = await logChatMessage({
           sessionId,
           role: "user",
           content: message,
         });
         console.log(`[Analytics] User message logged for session: ${sessionId}`);
+
+        // Perform AI analysis asynchronously (non-blocking)
+        if (userMessageId) {
+          analyzeUserMessageWithRetry(message)
+            .then((analysis) => {
+              if (analysis) {
+                console.log(`[AI Analysis] Sentiment: ${analysis.sentiment}, Categories: ${analysis.categories.join(", ")}, Urgency: ${analysis.urgency}`);
+                return updateMessageAnalysis(userMessageId, analysis);
+              }
+            })
+            .catch((error) => {
+              console.error("[AI Analysis] Error (non-blocking):", error);
+            });
+        }
       } catch (analyticsError) {
         console.error("Analytics error (non-blocking):", analyticsError);
       }

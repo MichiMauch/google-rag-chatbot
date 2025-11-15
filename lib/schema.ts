@@ -50,11 +50,19 @@ export const chatMessages = sqliteTable(
     // User feedback (thumbs up/down)
     feedback: integer("feedback"), // 1 = thumbs up, -1 = thumbs down, null = no feedback
     feedbackAt: integer("feedback_at"), // timestamp when feedback was given
+
+    // AI Analysis (for user messages)
+    sentiment: text("sentiment"), // "positive" | "negative" | "neutral"
+    sentimentScore: real("sentiment_score"), // 0.0 - 1.0 confidence score
+    categories: text("categories"), // JSON array of category strings
+    urgency: text("urgency"), // "low" | "medium" | "high"
+    analysisCompletedAt: integer("analysis_completed_at"), // timestamp when AI analysis was completed
   },
   (table) => ({
     sessionIdIdx: index("idx_messages_session").on(table.sessionId),
     createdAtIdx: index("idx_messages_created").on(table.createdAt),
     feedbackIdx: index("idx_messages_feedback").on(table.feedback),
+    sentimentIdx: index("idx_messages_sentiment").on(table.sentiment),
   })
 );
 

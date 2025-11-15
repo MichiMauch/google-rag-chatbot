@@ -719,3 +719,191 @@ export async function getTemporalPatterns(chatName: string, days: number = 30) {
     };
   }
 }
+
+/**
+ * Update message with AI analysis results
+ */
+export async function updateMessageAnalysis(
+  messageId: string,
+  analysis: {
+    sentiment: string;
+    sentimentScore: number;
+    categories: string[];
+    urgency: string;
+  }
+): Promise<void> {
+  try {
+    await db
+      .update(chatMessages)
+      .set({
+        sentiment: analysis.sentiment,
+        sentimentScore: analysis.sentimentScore,
+        categories: JSON.stringify(analysis.categories),
+        urgency: analysis.urgency,
+        analysisCompletedAt: Date.now(),
+      })
+      .where(eq(chatMessages.id, messageId));
+
+    console.log(`[Analytics] AI analysis updated for message ${messageId}`);
+  } catch (error) {
+    console.error("Error in updateMessageAnalysis:", error);
+    // Don't throw - analysis update should not break the chat
+  }
+}
+
+/**
+ * Get AI insights for a specific chat
+ */
+export async function getAIInsights(chatName: string, days: number = 30) {
+  try {
+    const cutoffDate = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    // Get all user messages with AI analysis for the chat
+    const messages = await db
+      .select({
+        sentiment: chatMessages.sentiment,
+        sentimentScore: chatMessages.sentimentScore,
+        categories: chatMessages.categories,
+        urgency: chatMessages.urgency,
+        createdAt: chatMessages.createdAt,
+      })
+      .from(chatMessages)
+      .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+      .where(
+        and(
+          eq(chatSessions.chatName, chatName),
+          eq(chatMessages.role, "user"),
+          sql`${chatMessages.createdAt} >= ${cutoffDate}`,
+          sql`${chatMessages.sentiment} IS NOT NULL`
+        )
+      );
+
+    // Count sentiments
+    const sentimentCounts = {
+      positive: 0,
+      negative: 0,
+      neutral: 0,
+    };
+
+    // Count urgency levels
+    const urgencyCounts = {
+      low: 0,
+      medium: 0,
+      high: 0,
+    };
+
+    // Collect all categories
+    const categoryMap: Record<string, number> = {};
+
+    // Process sentiment over time (daily aggregation)
+    const dailySentiment: Record<
+      string,
+      { positive: number; negative: number; neutral: number }
+    > = {};
+
+    for (const message of messages) {
+      // Count sentiments
+      if (message.sentiment === "positive") sentimentCounts.positive++;
+      else if (message.sentiment === "negative") sentimentCounts.negative++;
+      else if (message.sentiment === "neutral") sentimentCounts.neutral++;
+
+      // Count urgency
+      if (message.urgency === "low") urgencyCounts.low++;
+      else if (message.urgency === "medium") urgencyCounts.medium++;
+      else if (message.urgency === "high") urgencyCounts.high++;
+
+      // Collect categories
+      if (message.categories) {
+        try {
+          const cats = JSON.parse(message.categories);
+          for (const cat of cats) {
+            categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+          }
+        } catch (e) {
+          // Invalid JSON, skip
+        }
+      }
+
+      // Daily sentiment aggregation
+      const date = new Date(message.createdAt);
+      const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      if (!dailySentiment[dateKey]) {
+        dailySentiment[dateKey] = { positive: 0, negative: 0, neutral: 0 };
+      }
+
+      if (message.sentiment === "positive") dailySentiment[dateKey].positive++;
+      else if (message.sentiment === "negative") dailySentiment[dateKey].negative++;
+      else if (message.sentiment === "neutral") dailySentiment[dateKey].neutral++;
+    }
+
+    // Format sentiment data
+    const totalAnalyzed = messages.length;
+    const sentimentData = [
+      {
+        sentiment: "Positiv",
+        count: sentimentCounts.positive,
+        percentage:
+          totalAnalyzed > 0
+            ? Math.round((sentimentCounts.positive / totalAnalyzed) * 100)
+            : 0,
+      },
+      {
+        sentiment: "Neutral",
+        count: sentimentCounts.neutral,
+        percentage:
+          totalAnalyzed > 0
+            ? Math.round((sentimentCounts.neutral / totalAnalyzed) * 100)
+            : 0,
+      },
+      {
+        sentiment: "Negativ",
+        count: sentimentCounts.negative,
+        percentage:
+          totalAnalyzed > 0
+            ? Math.round((sentimentCounts.negative / totalAnalyzed) * 100)
+            : 0,
+      },
+    ];
+
+    // Format category data (top 10)
+    const categoryData = Object.entries(categoryMap)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Format urgency data
+    const urgencyData = [
+      { urgency: "Niedrig", count: urgencyCounts.low },
+      { urgency: "Mittel", count: urgencyCounts.medium },
+      { urgency: "Hoch", count: urgencyCounts.high },
+    ];
+
+    // Format timeline data (sorted by date)
+    const timelineData = Object.entries(dailySentiment)
+      .map(([date, counts]) => ({
+        date,
+        positive: counts.positive,
+        neutral: counts.neutral,
+        negative: counts.negative,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      sentimentData,
+      categoryData,
+      urgencyData,
+      timelineData,
+      totalAnalyzed,
+    };
+  } catch (error) {
+    console.error("Error in getAIInsights:", error);
+    return {
+      sentimentData: [],
+      categoryData: [],
+      urgencyData: [],
+      timelineData: [],
+      totalAnalyzed: 0,
+    };
+  }
+}
