@@ -15,7 +15,7 @@ export const maxDuration = 300; // 5 minutes
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chatName } = body;
+    const { chatName, debug = false } = body;
 
     if (!chatName) {
       return NextResponse.json(
@@ -64,6 +64,32 @@ export async function POST(request: NextRequest) {
         { error: "File search store is empty" },
         { status: 404 }
       );
+    }
+
+    // Debug mode: return detailed info without deleting
+    if (debug) {
+      const withUrl = documents.filter(d => d.customMetadata?.url);
+      const withoutUrl = documents.filter(d => !d.customMetadata?.url);
+
+      return NextResponse.json({
+        debug: true,
+        totalDocuments: documents.length,
+        withUrlMetadata: withUrl.length,
+        withoutUrlMetadata: withoutUrl.length,
+        sampleDocuments: documents.slice(0, 5).map(d => ({
+          name: d.name,
+          displayName: d.displayName,
+          createTime: d.createTime,
+          hasUrlMetadata: !!d.customMetadata?.url,
+          url: d.customMetadata?.url || null,
+          allMetadata: d.customMetadata || null
+        })),
+        documentsWithoutUrl: withoutUrl.slice(0, 10).map(d => ({
+          name: d.name,
+          displayName: d.displayName,
+          createTime: d.createTime
+        }))
+      });
     }
 
     // Group documents by URL (from customMetadata)
