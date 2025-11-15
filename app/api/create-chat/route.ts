@@ -5,7 +5,7 @@ import {
   scrapeMultiplePages,
 } from "@/lib/scraper";
 import { db } from "@/lib/db";
-import { chatConfigs } from "@/lib/schema";
+import { chatConfigs, scrapedPages as scrapedPagesTable } from "@/lib/schema";
 
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
@@ -311,6 +311,27 @@ export async function POST(request: NextRequest) {
                     url: page.url,
                     images: page.images || [],
                   });
+
+                  // Track this page in the database for future updates
+                  try {
+                    const urlEntry = urlsWithDates.find(u => u.url === page.url);
+                    const pageId = `page_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                    await db.insert(scrapedPagesTable).values({
+                      id: pageId,
+                      chatName,
+                      url: page.url,
+                      fileSearchDocumentName: operation.response?.documentName || null,
+                      lastScrapedAt: Date.now(),
+                      sitemapLastMod: urlEntry?.date?.getTime() || null,
+                      title: page.title,
+                      displayName: page.title,
+                      createdAt: Date.now(),
+                      updatedAt: Date.now(),
+                    });
+                  } catch (dbError) {
+                    console.error(`Failed to insert scrapedPage for ${page.url}:`, dbError);
+                    // Don't fail the upload if DB insert fails
+                  }
                 } else if (operation.error) {
                   console.error(`Upload failed for ${page.title}:`, operation.error);
                   sendLog({ type: "error", message: `      ✗ Upload-Fehler: ${page.title}` });
