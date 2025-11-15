@@ -11,11 +11,10 @@ import {
   AlertCircle,
   TrendingUp,
   Activity,
-  Settings,
-  BarChart3,
   ThumbsUp,
   ThumbsDown,
   Smile,
+  BarChart3,
 } from "lucide-react";
 import {
   LineChart,
@@ -35,106 +34,25 @@ import {
 import ChatSessionDetails from "@/components/ChatSessionDetails";
 import ChatProfileSettings from "@/components/ChatProfileSettings";
 
-interface ChatStats {
-  totalSessions: number;
-  totalMessages: number;
-  activeSessions: number;
-  avgResponseTime: number;
-  errorCount: number;
-  errorRate: number;
-}
+// Import types
+import type {
+  ChatStats,
+  FeedbackStats,
+  Session,
+  MessageOverTime,
+  ResponseTime,
+  PopularQuestion,
+  TemporalData,
+  AIInsights,
+  ChatConfig,
+  TabType,
+} from "./components/types/dashboard.types";
 
-interface FeedbackStats {
-  thumbsUp: number;
-  thumbsDown: number;
-  totalFeedback: number;
-  satisfactionScore: number;
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: number;
-  responseTimeMs?: number | null;
-  sourcesUsed?: string | null;
-  hadError?: number | null;
-  errorMessage?: string | null;
-}
-
-interface Session {
-  id: string;
-  chatName: string;
-  displayName: string;
-  createdAt: number;
-  lastActivityAt: number;
-  totalMessages: number | null;
-  totalUserMessages: number | null;
-  totalBotMessages: number | null;
-  messages: Message[];
-}
-
-interface MessageOverTime {
-  date: string;
-  userMessages: number;
-  botMessages: number;
-  totalMessages: number;
-}
-
-interface ResponseTime {
-  date: string;
-  avgResponseTime: number;
-  minResponseTime: number;
-  maxResponseTime: number;
-}
-
-interface PopularQuestion {
-  question: string;
-  count: number;
-}
-
-interface TemporalData {
-  weekdayData: { weekday: string; count: number }[];
-  hourData: { hour: number; count: number }[];
-  heatmapData: {
-    weekday: number;
-    weekdayLabel: string;
-    hours: { hour: number; count: number }[];
-  }[];
-  timeOfDayData: { period: string; count: number }[];
-  totalMessages: number;
-}
-
-interface AIInsights {
-  sentimentData: { sentiment: string; count: number; percentage: number }[];
-  categoryData: { category: string; count: number }[];
-  urgencyData: { urgency: string; count: number }[];
-  timelineData: { date: string; positive: number; neutral: number; negative: number }[];
-  totalAnalyzed: number;
-}
-
-interface ChatConfig {
-  chatName: string;
-  displayName: string;
-  uploadType: "documents" | "website";
-  themeId: string;
-  fileSearchStoreName?: string;
-  files: Array<{
-    name: string;
-    mimeType: string;
-    uri: string;
-    displayName?: string;
-    url?: string;
-    images?: string[];
-  }>;
-  sitemapUrls?: string[];
-  allowedDomains?: string[];
-  systemInstruction?: string;
-  aiAnalysisEnabled?: boolean;
-  createdAt: number;
-}
-
-type TabType = "analytics" | "temporal" | "ai-insights" | "settings";
+// Import shared components
+import StatsCard from "./components/shared/StatsCard";
+import ChartContainer from "./components/shared/ChartContainer";
+import EmptyState from "./components/shared/EmptyState";
+import TabNavigation from "./components/shared/TabNavigation";
 
 export default function ChatDashboardPage() {
   const params = useParams();
@@ -292,58 +210,11 @@ export default function ChatDashboardPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => handleTabChange("analytics")}
-              className={`${
-                activeTab === "analytics"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Analytics</span>
-            </button>
-            <button
-              onClick={() => handleTabChange("temporal")}
-              className={`${
-                activeTab === "temporal"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-            >
-              <Clock className="w-4 h-4" />
-              <span>Zeitliche Muster</span>
-            </button>
-            <button
-              onClick={() => chatConfig?.aiAnalysisEnabled && handleTabChange("ai-insights")}
-              disabled={!chatConfig?.aiAnalysisEnabled}
-              title={!chatConfig?.aiAnalysisEnabled ? "AI-Analyse ist deaktiviert. Aktivieren Sie es in den Einstellungen." : ""}
-              className={`${
-                activeTab === "ai-insights"
-                  ? "border-blue-500 text-blue-600"
-                  : !chatConfig?.aiAnalysisEnabled
-                  ? "border-transparent text-gray-400 cursor-not-allowed opacity-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span>AI-Analyse</span>
-            </button>
-            <button
-              onClick={() => handleTabChange("settings")}
-              className={`${
-                activeTab === "settings"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-            >
-              <Settings className="w-4 h-4" />
-              <span>Einstellungen</span>
-            </button>
-          </nav>
-        </div>
+        <TabNavigation
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          aiAnalysisEnabled={chatConfig?.aiAnalysisEnabled ?? false}
+        />
 
         {/* Tab Content */}
         {activeTab === "settings" ? (
@@ -360,11 +231,7 @@ export default function ChatDashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                   {/* Weekday Chart */}
                   {temporalData.weekdayData && temporalData.weekdayData.length > 0 && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <BarChart3 className="w-5 h-5" />
-                        <span>Aktivität nach Wochentag</span>
-                      </h2>
+                    <ChartContainer title="Aktivität nach Wochentag" icon={BarChart3}>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={temporalData.weekdayData}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -374,16 +241,12 @@ export default function ChatDashboardPage() {
                           <Bar dataKey="count" fill="#3b82f6" />
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartContainer>
                   )}
 
                   {/* Time of Day Pie Chart */}
                   {temporalData.timeOfDayData && temporalData.timeOfDayData.length > 0 && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <Clock className="w-5 h-5" />
-                        <span>Aktivität nach Tageszeit</span>
-                      </h2>
+                    <ChartContainer title="Aktivität nach Tageszeit" icon={Clock}>
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
@@ -404,17 +267,13 @@ export default function ChatDashboardPage() {
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartContainer>
                   )}
                 </div>
 
                 {/* Hour Chart - Full Width */}
                 {temporalData.hourData && temporalData.hourData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                      <Activity className="w-5 h-5" />
-                      <span>Aktivität nach Stunde</span>
-                    </h2>
+                  <ChartContainer title="Aktivität nach Stunde" icon={Activity} className="mb-6">
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={temporalData.hourData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -424,16 +283,12 @@ export default function ChatDashboardPage() {
                         <Bar dataKey="count" fill="#10b981" />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ChartContainer>
                 )}
 
                 {/* Heatmap: Weekday x Hour */}
                 {temporalData.heatmapData && temporalData.heatmapData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5" />
-                      <span>Heatmap: Wochentag × Stunde</span>
-                    </h2>
+                  <ChartContainer title="Heatmap: Wochentag × Stunde" icon={TrendingUp}>
                     <div className="overflow-x-auto">
                       <div className="min-w-max">
                         {/* Hour labels */}
@@ -482,15 +337,11 @@ export default function ChatDashboardPage() {
                         })}
                       </div>
                     </div>
-                  </div>
+                  </ChartContainer>
                 )}
               </>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <p className="text-gray-500 text-sm text-center py-8">
-                  Keine Daten für zeitliche Muster verfügbar (letzte 30 Tage)
-                </p>
-              </div>
+              <EmptyState message="Keine Daten für zeitliche Muster verfügbar (letzte 30 Tage)" />
             )}
           </>
         ) : activeTab === "ai-insights" ? (
@@ -521,11 +372,7 @@ export default function ChatDashboardPage() {
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                   {/* Sentiment Pie Chart */}
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                      <Smile className="w-5 h-5" />
-                      <span>Sentiment-Verteilung</span>
-                    </h2>
+                  <ChartContainer title="Sentiment-Verteilung" icon={Smile}>
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
                         <Pie data={aiInsights.sentimentData} dataKey="count" nameKey="sentiment" cx="50%" cy="50%" outerRadius={100} label>
@@ -538,15 +385,11 @@ export default function ChatDashboardPage() {
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ChartContainer>
 
                   {/* Category Bar Chart */}
                   {aiInsights.categoryData.length > 0 && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <BarChart3 className="w-5 h-5" />
-                        <span>Top Kategorien</span>
-                      </h2>
+                    <ChartContainer title="Top Kategorien" icon={BarChart3}>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={aiInsights.categoryData.slice(0, 8)}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -556,17 +399,13 @@ export default function ChatDashboardPage() {
                           <Bar dataKey="count" fill="#8b5cf6" />
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
+                    </ChartContainer>
                   )}
                 </div>
 
                 {/* Timeline Chart */}
                 {aiInsights.timelineData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5" />
-                      <span>Sentiment über Zeit</span>
-                    </h2>
+                  <ChartContainer title="Sentiment über Zeit" icon={TrendingUp} className="mb-6">
                     <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={aiInsights.timelineData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -579,16 +418,12 @@ export default function ChatDashboardPage() {
                         <Line type="monotone" dataKey="negative" stroke="#ef4444" name="Negativ" strokeWidth={2} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ChartContainer>
                 )}
 
                 {/* Urgency Bar Chart */}
                 {aiInsights.urgencyData.length > 0 && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                      <AlertCircle className="w-5 h-5" />
-                      <span>Dringlichkeit</span>
-                    </h2>
+                  <ChartContainer title="Dringlichkeit" icon={AlertCircle}>
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={aiInsights.urgencyData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -598,87 +433,76 @@ export default function ChatDashboardPage() {
                         <Bar dataKey="count" fill="#f59e0b" />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ChartContainer>
                 )}
               </>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <p className="text-gray-500 text-sm text-center py-8">
-                  Keine AI-Analysedaten verfügbar. Stellen Sie Fragen im Chat, um Sentiment-Analysen zu generieren.
-                </p>
-              </div>
+              <EmptyState message="Keine AI-Analysedaten verfügbar. Stellen Sie Fragen im Chat, um Sentiment-Analysen zu generieren." />
             )}
           </>
         ) : (
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Users className="w-5 h-5 text-blue-500" />
-                  <span className="text-2xl font-bold text-gray-900">{stats.totalSessions}</span>
-                </div>
-                <p className="text-sm text-gray-600">Sessions</p>
-                <p className="text-xs text-gray-500 mt-1">{stats.activeSessions} aktiv (24h)</p>
-              </div>
+              <StatsCard
+                icon={Users}
+                iconColor="text-blue-500"
+                value={stats.totalSessions}
+                label="Sessions"
+                subtitle={`${stats.activeSessions} aktiv (24h)`}
+              />
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <MessageSquare className="w-5 h-5 text-green-500" />
-                  <span className="text-2xl font-bold text-gray-900">{stats.totalMessages}</span>
-                </div>
-                <p className="text-sm text-gray-600">Fragen</p>
-              </div>
+              <StatsCard
+                icon={MessageSquare}
+                iconColor="text-green-500"
+                value={stats.totalMessages}
+                label="Fragen"
+              />
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Clock className="w-5 h-5 text-purple-500" />
-                  <span className="text-2xl font-bold text-gray-900">
-                    {stats.avgResponseTime ? `${(stats.avgResponseTime / 1000).toFixed(2)}s` : "-"}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">⌀ Antwortzeit</p>
-              </div>
+              <StatsCard
+                icon={Clock}
+                iconColor="text-purple-500"
+                value={stats.avgResponseTime ? `${(stats.avgResponseTime / 1000).toFixed(2)}s` : "-"}
+                label="⌀ Antwortzeit"
+              />
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <AlertCircle className={`w-5 h-5 ${stats.errorRate > 5 ? "text-red-500" : "text-orange-500"}`} />
-                  <span className={`text-2xl font-bold ${stats.errorRate > 5 ? "text-red-600" : "text-gray-900"}`}>
-                    {stats.errorRate.toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">Fehlerrate</p>
-                <p className="text-xs text-gray-500 mt-1">{stats.errorCount} Fehler</p>
-              </div>
+              <StatsCard
+                icon={AlertCircle}
+                iconColor={stats.errorRate > 5 ? "text-red-500" : "text-orange-500"}
+                value={`${stats.errorRate.toFixed(1)}%`}
+                valueColor={stats.errorRate > 5 ? "text-red-600" : "text-gray-900"}
+                label="Fehlerrate"
+                subtitle={`${stats.errorCount} Fehler`}
+              />
             </div>
 
             {/* Feedback Stats Cards */}
             {feedbackStats && feedbackStats.totalFeedback > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <ThumbsUp className="w-5 h-5 text-green-500" />
-                    <span className="text-2xl font-bold text-green-600">{feedbackStats.thumbsUp}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">Thumbs Up</p>
-                </div>
+                <StatsCard
+                  icon={ThumbsUp}
+                  iconColor="text-green-500"
+                  value={feedbackStats.thumbsUp}
+                  valueColor="text-green-600"
+                  label="Thumbs Up"
+                />
 
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <ThumbsDown className="w-5 h-5 text-red-500" />
-                    <span className="text-2xl font-bold text-red-600">{feedbackStats.thumbsDown}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">Thumbs Down</p>
-                </div>
+                <StatsCard
+                  icon={ThumbsDown}
+                  iconColor="text-red-500"
+                  value={feedbackStats.thumbsDown}
+                  valueColor="text-red-600"
+                  label="Thumbs Down"
+                />
 
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <Smile className="w-5 h-5 text-blue-500" />
-                    <span className="text-2xl font-bold text-blue-600">{feedbackStats.satisfactionScore}%</span>
-                  </div>
-                  <p className="text-sm text-gray-600">Zufriedenheit</p>
-                  <p className="text-xs text-gray-500 mt-1">{feedbackStats.totalFeedback} Bewertungen</p>
-                </div>
+                <StatsCard
+                  icon={Smile}
+                  iconColor="text-blue-500"
+                  value={`${feedbackStats.satisfactionScore}%`}
+                  valueColor="text-blue-600"
+                  label="Zufriedenheit"
+                  subtitle={`${feedbackStats.totalFeedback} Bewertungen`}
+                />
               </div>
             )}
 
@@ -686,11 +510,7 @@ export default function ChatDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Messages Over Time */}
               {messagesOverTime.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Activity className="w-5 h-5" />
-                    <span>Nachrichten über Zeit</span>
-                  </h2>
+                <ChartContainer title="Nachrichten über Zeit" icon={Activity}>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={messagesOverTime}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -702,16 +522,12 @@ export default function ChatDashboardPage() {
                       <Line type="monotone" dataKey="botMessages" stroke="#10b981" name="Bot" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </ChartContainer>
               )}
 
               {/* Response Times */}
               {responseTimes.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <TrendingUp className="w-5 h-5" />
-                    <span>Response-Zeiten (ms)</span>
-                  </h2>
+                <ChartContainer title="Response-Zeiten (ms)" icon={TrendingUp}>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={responseTimes}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -724,7 +540,7 @@ export default function ChatDashboardPage() {
                       <Line type="monotone" dataKey="maxResponseTime" stroke="#ef4444" name="Max" strokeWidth={1} strokeDasharray="5 5" />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </ChartContainer>
               )}
             </div>
 
