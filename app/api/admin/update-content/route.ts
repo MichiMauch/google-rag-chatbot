@@ -1,8 +1,12 @@
 import { NextRequest } from "next/server";
 import { createUpdateHistory, performIncrementalUpdate, type LogEvent } from "@/lib/contentUpdater";
 import { db } from "@/lib/db";
-import { chatConfigs } from "@/lib/schema";
+import { chatConfigs, scrapedPages } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import { ai } from "@/lib/gemini";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs/promises";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,10 +125,144 @@ export async function POST(request: NextRequest) {
 
           sendLog({ type: "info", message: `✓ ${jsonData.length} Einträge gefunden` });
 
-          // Note: For now, we're doing a simple re-import
-          // TODO: Implement smart diff to only update changed items
-          sendLog({ type: "info", message: `ℹ️ Vollständiger Re-Import wird durchgeführt` });
-          sendLog({ type: "complete", message: `✅ JSON-API Update abgeschlossen` });
+          // Helper function to extract field values (same as add-content)
+          const getField = (obj: any, keys: string[]) => {
+            for (const key of keys) {
+              if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+                return obj[key];
+              }
+            }
+            return null;
+          };
+
+          // Get existing URLs from database for this chat
+          const existingPages = await db
+            .select()
+            .from(scrapedPages)
+            .where(eq(scrapedPages.chatName, chatName));
+
+          const existingUrls = new Set(existingPages.map(p => p.url));
+          sendLog({ type: "info", message: `📊 ${existingUrls.size} bestehende Einträge gefunden` });
+
+          // Filter to only new items (items with URLs that don't exist yet)
+          const newItems = jsonData.filter((item: any) => {
+            const url = getField(item, ['url', 'link', 'href']);
+            return url && !existingUrls.has(url);
+          });
+
+          const skippedCount = jsonData.length - newItems.length;
+
+          if (newItems.length === 0) {
+            sendLog({ type: "info", message: `ℹ️ Keine neuen Einträge zum Importieren` });
+            sendLog({ type: "complete", message: `✅ JSON-API Update abgeschlossen (${skippedCount} bestehende Einträge übersprungen)` });
+          } else {
+            sendLog({ type: "info", message: `📝 ${newItems.length} neue Einträge zum Importieren, ${skippedCount} übersprungen` });
+
+            // Import new items
+            let uploadedCount = 0;
+
+            for (let i = 0; i < newItems.length; i++) {
+              const item = newItems[i];
+
+              // Auto-detect fields
+              const title = getField(item, ['title', 'name', 'heading', 'label']) || `Item ${i + 1}`;
+              const content = getField(item, ['content', 'body', 'text', 'description']) || JSON.stringify(item, null, 2);
+              const url = getField(item, ['url', 'link', 'href']);
+              const itemId = getField(item, ['id', 'identifier', 'key']);
+
+              sendLog({
+                type: "progress",
+                current: i + 1,
+                total: newItems.length,
+                message: `📄 Importiere ${i + 1}/${newItems.length}: ${title}`
+              });
+
+              try {
+                // Write to temp file
+                const tempDir = os.tmpdir();
+                const filename = `json-api-${Date.now()}-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                const tempPath = path.join(tempDir, filename);
+                await fs.writeFile(tempPath, content, "utf-8");
+
+                // Upload to File Search Store
+                let operation = await ai.fileSearchStores.uploadToFileSearchStore({
+                  fileSearchStoreName: fileSearchStoreName,
+                  file: tempPath,
+                  config: {
+                    mimeType: "text/plain",
+                    displayName: title,
+                    customMetadata: [
+                      { key: "title", stringValue: title },
+                      { key: "source", stringValue: "json-api" },
+                      { key: "apiUrl", stringValue: apiUrl },
+                      ...(url ? [{ key: "url", stringValue: url }] : []),
+                      ...(itemId ? [{ key: "itemId", stringValue: itemId }] : []),
+                    ],
+                  },
+                });
+
+                const maxWaitTime = 60000;
+                const startTime = Date.now();
+                let attempt = 0;
+
+                while (!operation.done) {
+                  if (Date.now() - startTime > maxWaitTime) {
+                    sendLog({ type: "info", message: `   ⏱️ Timeout bei: ${title}` });
+                    break;
+                  }
+
+                  const delays = [3000, 5000, 8000, 10000];
+                  const delay = delays[Math.min(attempt, delays.length - 1)];
+                  await new Promise((resolve) => setTimeout(resolve, delay));
+                  attempt++;
+
+                  operation = await ai.operations.get({ operation: operation });
+                }
+
+                if (operation.done && !operation.error) {
+                  // Track in database
+                  if (url) {
+                    try {
+                      const pageId = `json_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                      await db.insert(scrapedPages).values({
+                        id: pageId,
+                        chatName,
+                        url: url,
+                        fileSearchDocumentName: operation.response?.documentName || null,
+                        lastScrapedAt: Date.now(),
+                        sitemapLastMod: null,
+                        title: title,
+                        displayName: title,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now(),
+                      });
+                    } catch (dbError) {
+                      console.error(`Failed to insert scrapedPage for ${url}:`, dbError);
+                    }
+                  }
+
+                  uploadedCount++;
+                  sendLog({ type: "info", message: `   ✓ ${title}` });
+                } else if (operation.error) {
+                  sendLog({ type: "info", message: `   ✗ Fehler bei ${title}` });
+                }
+
+                // Clean up temp file
+                try {
+                  await fs.unlink(tempPath);
+                } catch (err) {
+                  // Ignore cleanup errors
+                }
+              } catch (error: any) {
+                sendLog({ type: "info", message: `   ✗ Fehler: ${error.message}` });
+              }
+            }
+
+            sendLog({
+              type: "complete",
+              message: `✅ ${uploadedCount} von ${newItems.length} neuen Einträgen importiert (${skippedCount} übersprungen)`
+            });
+          }
 
         } else {
           // Handle sitemap update

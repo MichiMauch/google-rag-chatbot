@@ -367,11 +367,39 @@ export async function POST(request: NextRequest) {
               return null;
             };
 
+            // Get existing URLs from database for duplicate detection
+            const existingPages = await db
+              .select()
+              .from(scrapedPagesTable)
+              .where(eq(scrapedPagesTable.chatName, chatName));
+
+            const existingUrls = new Set(existingPages.map(p => p.url));
+            sendLog({ type: "info", message: `📊 ${existingUrls.size} bestehende Einträge gefunden` });
+
+            // Filter to only new items (items with URLs that don't exist yet)
+            const newItems = items.filter((item: any) => {
+              const url = getField(item, ['url', 'link', 'href']);
+              // Include items without URLs, or items with URLs that don't exist yet
+              return !url || !existingUrls.has(url);
+            });
+
+            const skippedCount = items.length - newItems.length;
+            if (skippedCount > 0) {
+              sendLog({ type: "info", message: `📝 ${newItems.length} neue Einträge zum Importieren, ${skippedCount} Duplikate übersprungen` });
+            }
+
+            if (newItems.length === 0) {
+              sendLog({ type: "info", message: `ℹ️ Keine neuen Einträge zum Importieren` });
+              sendLog({ type: "complete", message: `✅ Import abgeschlossen (${skippedCount} bestehende Einträge übersprungen)` });
+              controller.close();
+              return;
+            }
+
             let uploadedCount = 0;
 
-            // Process each item
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
+            // Process each new item
+            for (let i = 0; i < newItems.length; i++) {
+              const item = newItems[i];
 
               // Auto-detect fields
               const title = getField(item, ['title', 'name', 'heading', 'label']) || `Item ${i + 1}`;
@@ -462,7 +490,7 @@ export async function POST(request: NextRequest) {
 
             sendLog({
               type: "complete",
-              message: `🎉 ${uploadedCount} von ${items.length} Einträgen erfolgreich importiert!`
+              message: `🎉 ${uploadedCount} von ${newItems.length} neuen Einträgen erfolgreich importiert!${skippedCount > 0 ? ` (${skippedCount} Duplikate übersprungen)` : ''}`
             });
 
           } catch (error: any) {
