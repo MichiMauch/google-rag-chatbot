@@ -6,7 +6,7 @@ import {
 } from "@/lib/scraper";
 import { db } from "@/lib/db";
 import { chatConfigs, scrapedPages as scrapedPagesTable } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
@@ -458,6 +458,23 @@ export async function POST(request: NextRequest) {
               } catch (error: any) {
                 sendLog({ type: "info", message: `   ✗ Fehler: ${error.message}` });
               }
+            }
+
+            // Save API URL to chat config for future updates
+            const existingApiUrls = chatConfig.apiUrls && chatConfig.apiUrls.trim() !== ""
+              ? JSON.parse(chatConfig.apiUrls)
+              : [];
+
+            if (!existingApiUrls.includes(apiUrl)) {
+              existingApiUrls.push(apiUrl);
+              await db.update(chatConfigs)
+                .set({
+                  apiUrls: JSON.stringify(existingApiUrls),
+                  updatedAt: Date.now()
+                })
+                .where(sql`LOWER(${chatConfigs.chatName}) = LOWER(${chatName})`);
+
+              sendLog({ type: "info", message: `✓ API-URL für Updates gespeichert` });
             }
 
             sendLog({

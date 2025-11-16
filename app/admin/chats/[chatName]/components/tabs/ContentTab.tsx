@@ -11,6 +11,7 @@ interface ContentTabProps {
   chatConfig: {
     uploadType: "documents" | "website";
     sitemapUrls?: string[];
+    apiUrls?: string[];
   };
 }
 
@@ -247,6 +248,86 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
               <h4 className="text-sm font-semibold text-gray-900 mb-3">Update-Historie</h4>
               <UpdateHistoryTable chatName={chatName} limit={5} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON-API Sources Section */}
+      {chatConfig.apiUrls && chatConfig.apiUrls.length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            JSON-API Quellen
+          </h3>
+
+          <div className="space-y-4">
+            {chatConfig.apiUrls.map((apiUrl, index) => (
+              <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Database className="w-4 h-4 text-blue-600" />
+                      <p className="text-sm font-medium text-gray-900 break-all">{apiUrl}</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Diese API-Quelle wurde importiert und kann jederzeit aktualisiert werden.
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setProgressLogs([]);
+                        setShowProgressModal(true);
+
+                        const response = await fetch("/api/admin/update-content", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            chatName,
+                            contentType: "json-api",
+                            apiUrl,
+                          }),
+                        });
+
+                        const reader = response.body?.getReader();
+                        const decoder = new TextDecoder();
+
+                        if (reader) {
+                          while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+
+                            const text = decoder.decode(value);
+                            const lines = text.split("\n");
+
+                            for (const line of lines) {
+                              if (line.startsWith("data: ")) {
+                                const event = JSON.parse(line.slice(6));
+                                if (event.message) {
+                                  setProgressLogs((prev) => [...prev, event.message]);
+                                }
+                                if (event.type === "complete") {
+                                  toast.success("API erfolgreich aktualisiert!");
+                                  setTimeout(() => window.location.reload(), 1500);
+                                } else if (event.type === "error") {
+                                  toast.error("Fehler beim Aktualisieren");
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } catch (error: any) {
+                        console.error("Error updating API:", error);
+                        toast.error("Fehler beim Aktualisieren");
+                        setProgressLogs((prev) => [...prev, `❌ Fehler: ${error.message}`]);
+                      }
+                    }}
+                    className="ml-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
+                  >
+                    Jetzt aktualisieren
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

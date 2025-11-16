@@ -35,6 +35,7 @@ export async function GET(
       fileSearchStoreName: dbConfig.fileSearchStoreName || undefined,
       files: dbConfig.files && dbConfig.files.trim() !== "" ? JSON.parse(dbConfig.files) : [],
       sitemapUrls: dbConfig.sitemapUrls && dbConfig.sitemapUrls.trim() !== "" ? JSON.parse(dbConfig.sitemapUrls) : undefined,
+      apiUrls: dbConfig.apiUrls && dbConfig.apiUrls.trim() !== "" ? JSON.parse(dbConfig.apiUrls) : undefined,
       allowedDomains: dbConfig.allowedDomains && dbConfig.allowedDomains.trim() !== "" ? JSON.parse(dbConfig.allowedDomains) : undefined,
       systemInstruction: dbConfig.systemInstruction || undefined,
       aiAnalysisEnabled: dbConfig.aiAnalysisEnabled ?? false,

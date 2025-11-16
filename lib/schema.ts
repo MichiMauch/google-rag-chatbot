@@ -203,6 +203,7 @@ export const chatConfigs = sqliteTable(
     // JSON stringified arrays/objects
     files: text("files").notNull(), // JSON array
     sitemapUrls: text("sitemap_urls"), // JSON array
+    apiUrls: text("api_urls"), // JSON array
     allowedDomains: text("allowed_domains"), // JSON array
 
     systemInstruction: text("system_instruction"),

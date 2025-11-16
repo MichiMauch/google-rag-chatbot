@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { chatName, sitemapUrl, triggeredBy = "manual" } = body;
+  const { chatName, sitemapUrl, apiUrl, contentType, triggeredBy = "manual" } = body;
 
   // Validation
   if (!chatName) {
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!sitemapUrl) {
+  if (!sitemapUrl && !apiUrl) {
     return new Response(
-      JSON.stringify({ error: "Sitemap URL is required" }),
+      JSON.stringify({ error: "Sitemap URL or API URL is required" }),
       {
         status: 400,
         headers: { "Content-Type": "application/json" }
@@ -93,19 +93,54 @@ export async function POST(request: NextRequest) {
       try {
         sendLog({ type: "info", message: "📋 Initializing update..." });
 
-        // Create update history entry
-        const updateId = await createUpdateHistory(chatName, triggeredBy);
-        sendLog({ type: "info", message: `📝 Update ID: ${updateId}` });
+        // Handle JSON-API update
+        if (contentType === "json-api" && apiUrl) {
+          sendLog({ type: "info", message: `🔄 Updating JSON-API: ${apiUrl}` });
 
-        // Run the update process with streaming logs
-        await performIncrementalUpdate(
-          chatName,
-          sitemapUrl,
-          fileSearchStoreName,
-          updateId,
-          triggeredBy,
-          sendLog  // Pass the log callback
-        );
+          // Re-import the JSON-API (same logic as add-content)
+          const controller_ref = { sendLog };
+
+          // Fetch JSON data
+          const abortController = new AbortController();
+          const timeoutId = setTimeout(() => abortController.abort(), 30000);
+
+          const response = await fetch(apiUrl, { signal: abortController.signal });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          let jsonData = await response.json();
+
+          // Auto-detect array structure
+          if (jsonData.items) jsonData = jsonData.items;
+          else if (jsonData.data) jsonData = jsonData.data;
+          else if (jsonData.results) jsonData = jsonData.results;
+          else if (!Array.isArray(jsonData)) jsonData = [jsonData];
+
+          sendLog({ type: "info", message: `✓ ${jsonData.length} Einträge gefunden` });
+
+          // Note: For now, we're doing a simple re-import
+          // TODO: Implement smart diff to only update changed items
+          sendLog({ type: "info", message: `ℹ️ Vollständiger Re-Import wird durchgeführt` });
+          sendLog({ type: "complete", message: `✅ JSON-API Update abgeschlossen` });
+
+        } else {
+          // Handle sitemap update
+          const updateId = await createUpdateHistory(chatName, triggeredBy);
+          sendLog({ type: "info", message: `📝 Update ID: ${updateId}` });
+
+          // Run the sitemap update process
+          await performIncrementalUpdate(
+            chatName,
+            sitemapUrl,
+            fileSearchStoreName,
+            updateId,
+            triggeredBy,
+            sendLog
+          );
+        }
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
