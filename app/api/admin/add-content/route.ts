@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
                 const tempDir = os.tmpdir();
                 const filename = `scraped-${Date.now()}-${(page.title || 'page').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
                 const tempPath = path.join(tempDir, filename);
-                await fs.writeFile(tempPath, page.markdownContent, "utf-8");
+                await fs.writeFile(tempPath, page.content, "utf-8");
 
                 let operation = await ai.fileSearchStores.uploadToFileSearchStore({
                   fileSearchStoreName: fileSearchStoreName,
