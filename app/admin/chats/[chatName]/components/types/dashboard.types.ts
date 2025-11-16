@@ -95,6 +95,7 @@ export interface ChatConfig {
     images?: string[];
   }>;
   sitemapUrls?: string[];
+  apiUrls?: string[];
   allowedDomains?: string[];
   systemInstruction?: string;
   aiAnalysisEnabled?: boolean;

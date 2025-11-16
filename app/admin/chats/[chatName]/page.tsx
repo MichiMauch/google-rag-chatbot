@@ -213,6 +213,7 @@ export default function ChatDashboardPage() {
             chatConfig={{
               uploadType: chatConfig.uploadType,
               sitemapUrls: chatConfig.sitemapUrls,
+              apiUrls: chatConfig.apiUrls,
             }}
           />
         ) : (
