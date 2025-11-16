@@ -7,6 +7,9 @@ import {
 import { db } from "@/lib/db";
 import { chatConfigs, scrapedPages as scrapedPagesTable } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs/promises";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,10 +151,18 @@ export async function POST(request: NextRequest) {
               });
 
               try {
-                let operation = await ai.fileSearchStores.documents.create({
-                  parent: fileSearchStoreName,
-                  document: {
-                    content: page.markdownContent,
+                // Write to temp file
+                const tempDir = os.tmpdir();
+                const filename = `scraped-${Date.now()}-${(page.title || 'page').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                const tempPath = path.join(tempDir, filename);
+                await fs.writeFile(tempPath, page.markdownContent, "utf-8");
+
+                let operation = await ai.fileSearchStores.uploadToFileSearchStore({
+                  fileSearchStoreName: fileSearchStoreName,
+                  file: tempPath,
+                  config: {
+                    mimeType: "text/plain",
+                    displayName: page.title || page.url,
                     customMetadata: [
                       { key: "url", stringValue: page.url },
                       { key: "pageTitle", stringValue: page.title || "" },
@@ -376,11 +387,19 @@ export async function POST(request: NextRequest) {
               });
 
               try {
-                // Create document in File Search Store
-                let operation = await ai.fileSearchStores.documents.create({
-                  parent: fileSearchStoreName,
-                  document: {
-                    content: content,
+                // Write to temp file
+                const tempDir = os.tmpdir();
+                const filename = `json-api-${Date.now()}-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                const tempPath = path.join(tempDir, filename);
+                await fs.writeFile(tempPath, content, "utf-8");
+
+                // Upload to File Search Store
+                let operation = await ai.fileSearchStores.uploadToFileSearchStore({
+                  fileSearchStoreName: fileSearchStoreName,
+                  file: tempPath,
+                  config: {
+                    mimeType: "text/plain",
+                    displayName: title,
                     customMetadata: [
                       { key: "title", stringValue: title },
                       { key: "source", stringValue: "json-api" },
