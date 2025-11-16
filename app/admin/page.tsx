@@ -402,14 +402,14 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-3">
                           <Link
-                            href={`/admin/chats/${encodeURIComponent(getChatNameFromStore(store.displayName))}`}
+                            href={`/admin/chats/${encodeURIComponent(getChatNameFromStore(store.displayName).toLowerCase())}`}
                             className="text-blue-600 hover:text-blue-900 inline-flex items-center space-x-1"
                             title="Analytics anzeigen"
                           >
                             <BarChart className="w-4 h-4" />
                           </Link>
                           <Link
-                            href={`/chats/${encodeURIComponent(getChatNameFromStore(store.displayName))}`}
+                            href={`/chats/${encodeURIComponent(getChatNameFromStore(store.displayName).toLowerCase())}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-green-600 hover:text-green-900 inline-flex items-center space-x-1"

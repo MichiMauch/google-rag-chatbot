@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { chatConfigs } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -10,11 +10,11 @@ export async function GET(
   try {
     const { chatname } = await params;
 
-    // Query database for chat config
+    // Query database for chat config (case-insensitive)
     const configs = await db
       .select()
       .from(chatConfigs)
-      .where(eq(chatConfigs.chatName, chatname))
+      .where(sql`LOWER(${chatConfigs.chatName}) = LOWER(${chatname})`)
       .limit(1);
 
     if (configs.length === 0) {

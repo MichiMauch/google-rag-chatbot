@@ -212,7 +212,7 @@ export default function AnalyticsDashboard() {
               {topChats.map((chat) => (
                 <Link
                   key={chat.chatName}
-                  href={`/admin/chats/${encodeURIComponent(chat.chatName)}`}
+                  href={`/admin/chats/${encodeURIComponent(chat.chatName.toLowerCase())}`}
                   className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-colors group"
                 >
                   <div className="flex-1 min-w-0">

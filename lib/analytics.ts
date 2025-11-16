@@ -16,11 +16,11 @@ export async function getOrCreateSession(
   }
 ): Promise<string> {
   try {
-    // Try to find existing active session for this chat
+    // Try to find existing active session for this chat (case-insensitive)
     const existingSessions = await db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.chatName, chatName))
+      .where(sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`)
       .orderBy(desc(chatSessions.lastActivityAt))
       .limit(1);
 
@@ -303,36 +303,36 @@ export async function getPopularQuestions(limit = 10) {
  */
 export async function getChatStats(chatName: string) {
   try {
-    // Total sessions for this chat
+    // Total sessions for this chat (case-insensitive)
     const totalSessionsResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(chatSessions)
-      .where(eq(chatSessions.chatName, chatName));
+      .where(sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`);
     const totalSessions = totalSessionsResult[0]?.count || 0;
 
-    // Total messages for this chat (only user questions)
+    // Total messages for this chat (only user questions, case-insensitive)
     const totalMessagesResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "user")
       ));
     const totalMessages = totalMessagesResult[0]?.count || 0;
 
-    // Active sessions (last 24h)
+    // Active sessions (last 24h, case-insensitive)
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const activeSessionsResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(chatSessions)
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         sql`${chatSessions.lastActivityAt} > ${oneDayAgo}`
       ));
     const activeSessions = activeSessionsResult[0]?.count || 0;
 
-    // Average response time
+    // Average response time (case-insensitive)
     const avgResponseTimeResult = await db
       .select({
         avg: sql<number>`avg(${chatMessages.responseTimeMs})`,
@@ -340,19 +340,19 @@ export async function getChatStats(chatName: string) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "assistant"),
         sql`${chatMessages.responseTimeMs} IS NOT NULL`
       ));
     const avgResponseTime = Math.round(avgResponseTimeResult[0]?.avg || 0);
 
-    // Error count
+    // Error count (case-insensitive)
     const errorCountResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.hadError, true)
       ));
     const errorCount = errorCountResult[0]?.count || 0;
@@ -383,11 +383,11 @@ export async function getChatStats(chatName: string) {
  */
 export async function getChatSessions(chatName: string, limit = 50) {
   try {
-    // Get sessions for this chat
+    // Get sessions for this chat (case-insensitive)
     const sessions = await db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.chatName, chatName))
+      .where(sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`)
       .orderBy(desc(chatSessions.lastActivityAt))
       .limit(limit);
 
@@ -431,7 +431,7 @@ export async function getChatMessagesOverTime(chatName: string, days = 30) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         sql`${chatMessages.createdAt} > ${startDate}`
       ))
       .groupBy(sql`date(${chatMessages.createdAt} / 1000, 'unixepoch')`)
@@ -457,7 +457,7 @@ export async function getChatPopularQuestions(chatName: string, limit = 10) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "user")
       ))
       .groupBy(chatMessages.content)
@@ -488,7 +488,7 @@ export async function getChatResponseTimes(chatName: string, days = 30) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "assistant"),
         sql`${chatMessages.responseTimeMs} IS NOT NULL`,
         sql`${chatMessages.createdAt} > ${startDate}`
@@ -527,7 +527,7 @@ export async function getFeedbackStats(chatName?: string) {
         .from(chatMessages)
         .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
         .where(and(
-          eq(chatSessions.chatName, chatName),
+          sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
           eq(chatMessages.role, "assistant")
         ));
     }
@@ -579,7 +579,7 @@ export async function getMessagesWithFeedback(chatName: string, limit = 50) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "assistant"),
         sql`${chatMessages.feedback} IS NOT NULL`
       ))
@@ -609,7 +609,7 @@ export async function getTemporalPatterns(chatName: string, days: number = 30) {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(and(
-        eq(chatSessions.chatName, chatName),
+        sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
         eq(chatMessages.role, "user"),
         sql`${chatMessages.createdAt} >= ${cutoffDate}`
       ));
@@ -775,7 +775,7 @@ export async function getAIInsights(chatName: string, days: number = 30) {
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(
         and(
-          eq(chatSessions.chatName, chatName),
+          sql`LOWER(${chatSessions.chatName}) = LOWER(${chatName})`,
           eq(chatMessages.role, "user"),
           sql`${chatMessages.createdAt} >= ${cutoffDate}`,
           sql`${chatMessages.sentiment} IS NOT NULL`
