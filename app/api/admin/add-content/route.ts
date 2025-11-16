@@ -460,7 +460,23 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            // Save API URL to chat config for future updates
+            sendLog({
+              type: "complete",
+              message: `🎉 ${uploadedCount} von ${items.length} Einträgen erfolgreich importiert!`
+            });
+
+          } catch (error: any) {
+            if (error.name === 'AbortError') {
+              sendLog({ type: "error", message: "❌ Timeout beim Laden der API" });
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+              sendLog({ type: "error", message: "❌ Netzwerkfehler - CORS oder Verbindungsproblem" });
+            } else {
+              sendLog({ type: "error", message: `❌ Fehler: ${error.message}` });
+            }
+          }
+
+          // Save API URL to chat config for future updates (always run, even if errors occurred)
+          try {
             const existingApiUrls = chatConfig.apiUrls && chatConfig.apiUrls.trim() !== ""
               ? JSON.parse(chatConfig.apiUrls)
               : [];
@@ -476,20 +492,10 @@ export async function POST(request: NextRequest) {
 
               sendLog({ type: "info", message: `✓ API-URL für Updates gespeichert` });
             }
-
-            sendLog({
-              type: "complete",
-              message: `🎉 ${uploadedCount} von ${items.length} Einträgen erfolgreich importiert!`
-            });
-
           } catch (error: any) {
-            if (error.name === 'AbortError') {
-              sendLog({ type: "error", message: "❌ Timeout beim Laden der API" });
-            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-              sendLog({ type: "error", message: "❌ Netzwerkfehler - CORS oder Verbindungsproblem" });
-            } else {
-              sendLog({ type: "error", message: `❌ Fehler: ${error.message}` });
-            }
+            // Don't fail the entire operation if URL save fails
+            console.error("Failed to save API URL:", error);
+            sendLog({ type: "info", message: `⚠️ Warnung: API-URL konnte nicht gespeichert werden` });
           }
 
         } else {
