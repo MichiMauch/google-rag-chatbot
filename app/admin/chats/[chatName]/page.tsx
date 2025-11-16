@@ -11,6 +11,7 @@ import ChatProfileSettings from "@/components/ChatProfileSettings";
 import AnalyticsTab from "./components/tabs/AnalyticsTab";
 import TemporalTab from "./components/tabs/TemporalTab";
 import AIInsightsTab from "./components/tabs/AIInsightsTab";
+import ContentTab from "./components/tabs/ContentTab";
 
 // Import types
 import type {
@@ -37,7 +38,11 @@ export default function ChatDashboardPage() {
 
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<TabType>(
-    (tabParam === "settings" ? "settings" : tabParam === "temporal" ? "temporal" : tabParam === "ai-insights" ? "ai-insights" : "analytics") as TabType
+    (tabParam === "settings" ? "settings" :
+     tabParam === "temporal" ? "temporal" :
+     tabParam === "ai-insights" ? "ai-insights" :
+     tabParam === "content" ? "content" :
+     "analytics") as TabType
   );
 
   const [loading, setLoading] = useState(true);
@@ -202,6 +207,14 @@ export default function ChatDashboardPage() {
           <TemporalTab temporalData={temporalData} />
         ) : activeTab === "ai-insights" ? (
           <AIInsightsTab aiInsights={aiInsights} />
+        ) : activeTab === "content" ? (
+          <ContentTab
+            chatName={chatName}
+            chatConfig={{
+              uploadType: chatConfig.uploadType,
+              sitemapUrls: chatConfig.sitemapUrls,
+            }}
+          />
         ) : (
           <AnalyticsTab
             stats={stats}

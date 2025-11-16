@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { Save, X, Shield, Palette, FileText, Calendar, Globe } from "lucide-react";
 import { themes } from "@/lib/themes";
 import AllowedDomainsModal from "./AllowedDomainsModal";
-import ContentUpdateManager from "./ContentUpdateManager";
-import UpdateHistoryTable from "./UpdateHistoryTable";
 import toast from "react-hot-toast";
 
 interface ChatConfig {
@@ -267,31 +265,6 @@ export default function ChatProfileSettings({
             </div>
           </div>
         </div>
-
-        {/* Content Updates Section (only for website chats) */}
-        {config.uploadType === "website" && config.sitemapUrls && config.sitemapUrls.length > 0 && (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Content Updates
-            </h3>
-
-            <div className="space-y-6">
-              {config.sitemapUrls.map((sitemapUrl, index) => (
-                <div key={index}>
-                  <ContentUpdateManager
-                    chatName={chatName}
-                    sitemapUrl={sitemapUrl}
-                  />
-                </div>
-              ))}
-
-              <div className="pt-4 border-t border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Update-Historie</h4>
-                <UpdateHistoryTable chatName={chatName} limit={5} />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Save/Cancel Buttons */}
         {isEditing && (

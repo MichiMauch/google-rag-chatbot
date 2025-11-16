@@ -101,4 +101,4 @@ export interface ChatConfig {
   createdAt: number;
 }
 
-export type TabType = "analytics" | "temporal" | "ai-insights" | "settings";
+export type TabType = "analytics" | "temporal" | "ai-insights" | "content" | "settings";
