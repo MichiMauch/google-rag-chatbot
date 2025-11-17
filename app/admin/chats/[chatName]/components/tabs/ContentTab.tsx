@@ -390,7 +390,7 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.txt,.doc,.docx"
+            accept=".pdf,.txt,.doc,.docx,.xlsx,.xls,.csv,.json,.xml,.md,.rtf"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleFileUpload(file);

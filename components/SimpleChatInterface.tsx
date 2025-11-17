@@ -6,7 +6,6 @@ import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
 import SuggestedQuestions from "./SuggestedQuestions";
-import ImageGallery from "./ImageGallery";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
 import FeedbackButtons from "./FeedbackButtons";
@@ -15,7 +14,6 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
-  images?: string[];
   messageId?: string;
   feedback?: 1 | -1 | null;
 }
@@ -32,7 +30,6 @@ interface ChatConfig {
     uri: string;
     displayName?: string;
     url?: string;
-    images?: string[];
   }>;
   createdAt: number;
   systemInstruction?: string;
@@ -288,12 +285,10 @@ function SourcesSidebar({
 function TypedMessage({
   content,
   sources,
-  images,
   onComplete,
 }: {
   content: string;
   sources?: Source[];
-  images?: string[];
   onComplete?: () => void;
 }) {
   const { displayedText, isComplete, skip } = useTypewriter({
@@ -317,7 +312,6 @@ function TypedMessage({
       {isComplete && (
         <>
           <SourcesDisplay sources={sources} />
-          {images && images.length > 0 && <ImageGallery images={images} maxDisplay={4} />}
         </>
       )}
     </div>
@@ -439,7 +433,6 @@ export default function SimpleChatInterface({
       }
 
       let sources: Source[] | undefined;
-      let images: string[] | undefined;
 
       if (data.usedFileUris && data.usedFileUris.length > 0) {
         const usedFiles = fileUris.filter((f) => data.usedFileUris.includes(f.uri));
@@ -460,20 +453,6 @@ export default function SimpleChatInterface({
           });
           return newSources;
         });
-
-        // Extract images from used files (intelligent selection)
-        const collectedImages: string[] = [];
-        for (const file of usedFiles) {
-          if (file.images && file.images.length > 0) {
-            collectedImages.push(...file.images);
-          }
-        }
-
-        // Limit to 3-4 images and remove duplicates
-        if (collectedImages.length > 0) {
-          const uniqueImages = collectedImages.filter((img, index, arr) => arr.indexOf(img) === index);
-          images = uniqueImages.slice(0, 4);
-        }
       }
 
       const assistantMessage: Message = {
@@ -482,7 +461,6 @@ export default function SimpleChatInterface({
         messageId: data.messageId || undefined,
         feedback: null,
         sources: sources,
-        images: images,
       };
 
       setLatestAssistantId(Date.now().toString());
@@ -643,7 +621,6 @@ export default function SimpleChatInterface({
                       <TypedMessage
                         content={message.content}
                         sources={message.sources}
-                        images={message.images}
                         onComplete={() => setLatestAssistantId(null)}
                       />
                     ) : (
@@ -652,9 +629,6 @@ export default function SimpleChatInterface({
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
                         <SourcesDisplay sources={message.sources} />
-                        {message.images && message.images.length > 0 && (
-                          <ImageGallery images={message.images} maxDisplay={4} />
-                        )}
                         <FeedbackButtons
                           messageId={message.messageId}
                           initialFeedback={message.feedback}

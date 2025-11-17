@@ -128,7 +128,7 @@ export default function FileUpload({ onFilesChange }: FileUploadProps) {
           className="hidden"
           onChange={handleFileUpload}
           disabled={uploading}
-          accept=".pdf,.doc,.docx,.txt,.json,.xml,.csv"
+          accept=".pdf,.txt,.doc,.docx,.xlsx,.xls,.csv,.json,.xml,.md,.rtf"
         />
         <label
           htmlFor="file-upload"

@@ -506,7 +506,7 @@ export default function WizardForm() {
               onChange={handleFileChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
-              accept=".pdf,.txt,.doc,.docx,.csv,.json,.md"
+              accept=".pdf,.txt,.doc,.docx,.xlsx,.xls,.csv,.json,.xml,.md,.rtf"
             />
             {files.length > 0 && (
               <div className="text-sm text-gray-600 mt-2">
