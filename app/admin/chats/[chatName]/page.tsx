@@ -12,6 +12,8 @@ import AnalyticsTab from "./components/tabs/AnalyticsTab";
 import TemporalTab from "./components/tabs/TemporalTab";
 import AIInsightsTab from "./components/tabs/AIInsightsTab";
 import ContentTab from "./components/tabs/ContentTab";
+import ChunkExplorerTab from "./components/tabs/ChunkExplorerTab";
+import StoreInfoTab from "./components/tabs/StoreInfoTab";
 
 // Import types
 import type {
@@ -42,6 +44,8 @@ export default function ChatDashboardPage() {
      tabParam === "temporal" ? "temporal" :
      tabParam === "ai-insights" ? "ai-insights" :
      tabParam === "content" ? "content" :
+     tabParam === "chunk-explorer" ? "chunk-explorer" :
+     tabParam === "store-info" ? "store-info" :
      "analytics") as TabType
   );
 
@@ -217,6 +221,13 @@ export default function ChatDashboardPage() {
               files: JSON.stringify(chatConfig.files || []),
             }}
           />
+        ) : activeTab === "chunk-explorer" ? (
+          <ChunkExplorerTab
+            chatName={chatName}
+            fileSearchStoreName={chatConfig?.fileSearchStoreName}
+          />
+        ) : activeTab === "store-info" ? (
+          <StoreInfoTab />
         ) : (
           <AnalyticsTab
             stats={stats}

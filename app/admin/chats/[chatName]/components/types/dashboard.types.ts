@@ -102,4 +102,4 @@ export interface ChatConfig {
   createdAt: number;
 }
 
-export type TabType = "analytics" | "temporal" | "ai-insights" | "content" | "settings";
+export type TabType = "analytics" | "temporal" | "ai-insights" | "content" | "chunk-explorer" | "store-info" | "settings";

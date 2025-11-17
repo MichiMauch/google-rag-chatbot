@@ -1,4 +1,4 @@
-import { BarChart3, Clock, TrendingUp, Settings, FileText } from "lucide-react";
+import { BarChart3, Clock, TrendingUp, Settings, FileText, Database, BookOpen } from "lucide-react";
 import { TabType } from "../types/dashboard.types";
 
 interface TabNavigationProps {
@@ -69,6 +69,30 @@ export default function TabNavigation({
         >
           <FileText className="w-4 h-4" />
           <span>Inhalt</span>
+        </button>
+
+        <button
+          onClick={() => onTabChange("chunk-explorer")}
+          className={`${
+            activeTab === "chunk-explorer"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+        >
+          <Database className="w-4 h-4" />
+          <span>Chunk Explorer</span>
+        </button>
+
+        <button
+          onClick={() => onTabChange("store-info")}
+          className={`${
+            activeTab === "store-info"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Store Info</span>
         </button>
 
         <button
