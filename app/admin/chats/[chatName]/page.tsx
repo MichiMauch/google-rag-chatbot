@@ -214,6 +214,7 @@ export default function ChatDashboardPage() {
               uploadType: chatConfig.uploadType,
               sitemapUrls: chatConfig.sitemapUrls,
               apiUrls: chatConfig.apiUrls,
+              files: JSON.stringify(chatConfig.files || []),
             }}
           />
         ) : (
