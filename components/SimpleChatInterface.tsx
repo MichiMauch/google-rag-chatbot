@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X, Volume2, VolumeX } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -9,6 +9,8 @@ import SuggestedQuestions from "./SuggestedQuestions";
 import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
 import FeedbackButtons from "./FeedbackButtons";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import VoiceSettingsModal from "./VoiceSettingsModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -331,9 +333,13 @@ export default function SimpleChatInterface({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Text-to-Speech
+  const tts = useTextToSpeech();
 
   const fileUris = chatConfig.files;
 
@@ -393,6 +399,20 @@ export default function SimpleChatInterface({
       localStorage.setItem(storageKey, JSON.stringify(messages));
     }
   }, [messages, chatName]);
+
+  // Auto-play TTS for new assistant messages
+  useEffect(() => {
+    if (latestAssistantId && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "assistant" && lastMessage.content) {
+        // Wait a bit for typewriter to finish
+        const timer = setTimeout(() => {
+          tts.speakIfAutoPlay(lastMessage.content, lastMessage.messageId);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [latestAssistantId, messages, tts]);
 
   async function handleSend(messageText?: string) {
     const textToSend = messageText || input;
@@ -520,6 +540,21 @@ export default function SimpleChatInterface({
                 </p>
               </div>
             </div>
+
+            {/* Voice Button */}
+            {tts.isSupported && (
+              <button
+                onClick={() => setVoiceSettingsOpen(true)}
+                className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+                title={tts.isEnabled ? "Sprachausgabe aktiv" : "Sprachausgabe aktivieren"}
+              >
+                {tts.isEnabled ? (
+                  <Volume2 className={`w-5 h-5 ${tts.isSpeaking ? 'animate-pulse' : ''}`} />
+                ) : (
+                  <VolumeX className="w-5 h-5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -718,6 +753,24 @@ export default function SimpleChatInterface({
           </div>
         </div>
       </div>
+
+      {/* Voice Settings Modal */}
+      <VoiceSettingsModal
+        isOpen={voiceSettingsOpen}
+        onClose={() => setVoiceSettingsOpen(false)}
+        isEnabled={tts.isEnabled}
+        autoPlay={tts.autoPlay}
+        rate={tts.rate}
+        pitch={tts.pitch}
+        selectedVoice={tts.selectedVoice}
+        availableVoices={tts.availableVoices}
+        onToggleEnabled={tts.toggleEnabled}
+        onToggleAutoPlay={tts.toggleAutoPlay}
+        onRateChange={tts.setRate}
+        onPitchChange={tts.setPitch}
+        onVoiceChange={tts.setVoice}
+        onTest={(text) => tts.speak(text)}
+      />
     </div>
   );
 }
