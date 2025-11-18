@@ -17,14 +17,14 @@ export interface UseTextToSpeechReturn {
   pitch: number;
   availableVoices: SpeechSynthesisVoice[];
   selectedVoice: SpeechSynthesisVoice | null;
-  useCloudTTS: boolean;
-  cloudVoices: TTS.CloudTTSVoice[];
-  cloudVoiceName: string | null;
+  usePremiumTTS: boolean;
+  premiumVoices: TTS.PremiumTTSVoice[];
+  premiumVoiceId: string | null;
 
   // Actions
   toggleEnabled: () => void;
   toggleAutoPlay: () => void;
-  toggleCloudTTS: () => void;
+  togglePremiumTTS: () => void;
   speak: (text: string, messageId?: string) => void;
   stop: () => void;
   pause: () => void;
@@ -32,7 +32,7 @@ export interface UseTextToSpeechReturn {
   setRate: (rate: number) => void;
   setPitch: (pitch: number) => void;
   setVoice: (voice: SpeechSynthesisVoice | null) => void;
-  setCloudVoice: (voiceName: string | null) => void;
+  setPremiumVoice: (voiceId: string | null) => void;
 
   // Utilities
   speakIfAutoPlay: (text: string, messageId?: string) => void;
@@ -48,9 +48,9 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
   const [pitch, setPitchState] = useState(1.0);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [useCloudTTS, setUseCloudTTS] = useState(false);
-  const [cloudVoices, setCloudVoices] = useState<TTS.CloudTTSVoice[]>([]);
-  const [cloudVoiceName, setCloudVoiceName] = useState<string | null>(null);
+  const [usePremiumTTS, setUsePremiumTTS] = useState(false);
+  const [premiumVoices, setPremiumVoices] = useState<TTS.PremiumTTSVoice[]>([]);
+  const [premiumVoiceId, setPremiumVoiceId] = useState<string | null>(null);
 
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -68,8 +68,8 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     setAutoPlay(prefs.autoPlay);
     setRateState(prefs.rate);
     setPitchState(prefs.pitch);
-    setUseCloudTTS(prefs.useCloudTTS || false);
-    setCloudVoiceName(prefs.cloudVoiceName || null);
+    setUsePremiumTTS(prefs.usePremiumTTS || false);
+    setPremiumVoiceId(prefs.premiumVoiceId || null);
 
     // Load Web Speech voices
     const loadVoices = () => {
@@ -91,16 +91,16 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    // Load Cloud TTS voices
-    const loadCloudVoices = async () => {
+    // Load ElevenLabs voices
+    const loadPremiumVoices = async () => {
       try {
-        const voices = await TTS.getCloudVoices();
-        setCloudVoices(voices);
+        const voices = await TTS.getPremiumVoices();
+        setPremiumVoices(voices);
       } catch (error) {
-        console.error('Failed to load Cloud TTS voices:', error);
+        console.error('Failed to load ElevenLabs voices:', error);
       }
     };
-    loadCloudVoices();
+    loadPremiumVoices();
 
     // Cleanup
     return () => {
@@ -134,11 +134,11 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     });
   }, []);
 
-  // Toggle Cloud TTS
-  const toggleCloudTTS = useCallback(() => {
-    setUseCloudTTS(prev => {
+  // Toggle Premium TTS
+  const togglePremiumTTS = useCallback(() => {
+    setUsePremiumTTS(prev => {
       const newValue = !prev;
-      TTS.savePreferences({ useCloudTTS: newValue });
+      TTS.savePreferences({ usePremiumTTS: newValue });
       return newValue;
     });
   }, []);
@@ -150,13 +150,13 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     // Stop any current speech
     TTS.stop();
 
-    // Use speakWithFallback to support both Cloud TTS and Web Speech API
+    // Use speakWithFallback to support both ElevenLabs TTS and Web Speech API
     const utterance = await TTS.speakWithFallback(text, {
-      useCloudTTS,
+      usePremiumTTS,
       rate,
       pitch,
       voice: selectedVoice,
-      cloudVoiceName: cloudVoiceName || undefined,
+      premiumVoiceId: premiumVoiceId || undefined,
       onStart: () => {
         setIsSpeaking(true);
         if (messageId) {
@@ -179,7 +179,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     if (utterance) {
       currentUtteranceRef.current = utterance;
     }
-  }, [isSupported, isEnabled, rate, pitch, selectedVoice, useCloudTTS, cloudVoiceName]);
+  }, [isSupported, isEnabled, rate, pitch, selectedVoice, usePremiumTTS, premiumVoiceId]);
 
   // Stop speaking
   const stop = useCallback(() => {
@@ -217,10 +217,10 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     TTS.savePreferences({ voiceURI: voice?.voiceURI });
   }, []);
 
-  // Set Cloud TTS voice
-  const setCloudVoice = useCallback((voiceName: string | null) => {
-    setCloudVoiceName(voiceName);
-    TTS.savePreferences({ cloudVoiceName: voiceName || undefined });
+  // Set Premium TTS voice
+  const setPremiumVoice = useCallback((voiceId: string | null) => {
+    setPremiumVoiceId(voiceId);
+    TTS.savePreferences({ premiumVoiceId: voiceId || undefined });
   }, []);
 
   // Speak if auto-play is enabled
@@ -241,14 +241,14 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     pitch,
     availableVoices,
     selectedVoice,
-    useCloudTTS,
-    cloudVoices,
-    cloudVoiceName,
+    usePremiumTTS,
+    premiumVoices,
+    premiumVoiceId,
 
     // Actions
     toggleEnabled,
     toggleAutoPlay,
-    toggleCloudTTS,
+    togglePremiumTTS,
     speak,
     stop,
     pause,
@@ -256,7 +256,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     setRate,
     setPitch,
     setVoice,
-    setCloudVoice,
+    setPremiumVoice,
 
     // Utilities
     speakIfAutoPlay,

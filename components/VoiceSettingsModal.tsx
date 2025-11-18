@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Volume2, VolumeX, Play, Loader2, Sparkles } from "lucide-react";
-import { CloudTTSVoice } from "@/lib/textToSpeech";
+import { PremiumTTSVoice } from "@/lib/textToSpeech";
 
 interface VoiceSettingsModalProps {
   isOpen: boolean;
@@ -13,16 +13,16 @@ interface VoiceSettingsModalProps {
   pitch: number;
   selectedVoice: SpeechSynthesisVoice | null;
   availableVoices: SpeechSynthesisVoice[];
-  useCloudTTS: boolean;
-  cloudVoices: CloudTTSVoice[];
-  cloudVoiceName: string | null;
+  usePremiumTTS: boolean;
+  premiumVoices: PremiumTTSVoice[];
+  premiumVoiceId: string | null;
   onToggleEnabled: () => void;
   onToggleAutoPlay: () => void;
-  onToggleCloudTTS: () => void;
+  onTogglePremiumTTS: () => void;
   onRateChange: (rate: number) => void;
   onPitchChange: (pitch: number) => void;
   onVoiceChange: (voice: SpeechSynthesisVoice | null) => void;
-  onCloudVoiceChange: (voiceName: string | null) => void;
+  onPremiumVoiceChange: (voiceId: string | null) => void;
   onTest: (text: string) => void;
 }
 
@@ -35,16 +35,16 @@ export default function VoiceSettingsModal({
   pitch,
   selectedVoice,
   availableVoices,
-  useCloudTTS,
-  cloudVoices,
-  cloudVoiceName,
+  usePremiumTTS,
+  premiumVoices,
+  premiumVoiceId,
   onToggleEnabled,
   onToggleAutoPlay,
-  onToggleCloudTTS,
+  onTogglePremiumTTS,
   onRateChange,
   onPitchChange,
   onVoiceChange,
-  onCloudVoiceChange,
+  onPremiumVoiceChange,
   onTest,
 }: VoiceSettingsModalProps) {
   const [testText, setTestText] = useState("Hallo! Das ist ein Test der Sprachausgabe.");
@@ -61,15 +61,11 @@ export default function VoiceSettingsModal({
     !v.lang.startsWith('de') && !v.lang.startsWith('en')
   );
 
-  // Group Cloud TTS voices by language
-  const germanCloudVoices = cloudVoices.filter(v =>
-    v.languageCodes.some(lang => lang.startsWith('de'))
-  );
-  const englishCloudVoices = cloudVoices.filter(v =>
-    v.languageCodes.some(lang => lang.startsWith('en'))
-  );
-  const otherCloudVoices = cloudVoices.filter(v =>
-    !v.languageCodes.some(lang => lang.startsWith('de') || lang.startsWith('en'))
+  // Group Premium TTS voices by category (ElevenLabs categorizes by premade/cloned/etc)
+  const premadeVoices = premiumVoices.filter(v => v.category === 'premade');
+  const professionalVoices = premiumVoices.filter(v => v.category === 'professional');
+  const otherPremiumVoices = premiumVoices.filter(v =>
+    v.category !== 'premade' && v.category !== 'professional'
   );
 
   const handleTest = () => {
@@ -89,9 +85,9 @@ export default function VoiceSettingsModal({
     onVoiceChange(voice || null);
   };
 
-  const handleCloudVoiceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const voiceName = e.target.value;
-    onCloudVoiceChange(voiceName || null);
+  const handlePremiumVoiceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const voiceId = e.target.value;
+    onPremiumVoiceChange(voiceId || null);
   };
 
   if (!isOpen) return null;
@@ -186,27 +182,27 @@ export default function VoiceSettingsModal({
                 </button>
               </div>
 
-              {/* Cloud TTS Toggle */}
+              {/* Premium TTS Toggle */}
               <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100">
                 <div>
                   <label className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-purple-600" />
-                    Premium Stimmen (Cloud TTS)
+                    Premium Stimmen (ElevenLabs)
                   </label>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Hochwertige Google Cloud Stimmen für bessere Qualität
+                    Hochwertige KI-Stimmen mit natürlichem Klang
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={onToggleCloudTTS}
+                  onClick={onTogglePremiumTTS}
                   className={`${
-                    useCloudTTS ? 'bg-purple-600' : 'bg-gray-200'
+                    usePremiumTTS ? 'bg-purple-600' : 'bg-gray-200'
                   } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2`}
                 >
                   <span
                     className={`${
-                      useCloudTTS ? 'translate-x-5' : 'translate-x-0'
+                      usePremiumTTS ? 'translate-x-5' : 'translate-x-0'
                     } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
                   />
                 </button>
@@ -215,7 +211,7 @@ export default function VoiceSettingsModal({
               {/* Voice Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  {useCloudTTS ? (
+                  {usePremiumTTS ? (
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-purple-600" />
                       Premium Stimme
@@ -224,36 +220,36 @@ export default function VoiceSettingsModal({
                     'Stimme'
                   )}
                 </label>
-                {useCloudTTS ? (
+                {usePremiumTTS ? (
                   <select
-                    value={cloudVoiceName || ''}
-                    onChange={handleCloudVoiceSelect}
+                    value={premiumVoiceId || ''}
+                    onChange={handlePremiumVoiceSelect}
                     className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gradient-to-r from-blue-50 to-purple-50"
                   >
-                    <option value="">Automatisch (Spracherkennung)</option>
-                    {germanCloudVoices.length > 0 && (
-                      <optgroup label="🇩🇪 Deutsch">
-                        {germanCloudVoices.map(voice => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name} ({voice.ssmlGender})
+                    <option value="">Automatisch (Standard: Rachel)</option>
+                    {premadeVoices.length > 0 && (
+                      <optgroup label="✨ Vorgefertigte Stimmen">
+                        {premadeVoices.map(voice => (
+                          <option key={voice.voice_id} value={voice.voice_id}>
+                            {voice.name}
                           </option>
                         ))}
                       </optgroup>
                     )}
-                    {englishCloudVoices.length > 0 && (
-                      <optgroup label="🇬🇧 English">
-                        {englishCloudVoices.map(voice => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name} ({voice.ssmlGender})
+                    {professionalVoices.length > 0 && (
+                      <optgroup label="💼 Professionelle Stimmen">
+                        {professionalVoices.map(voice => (
+                          <option key={voice.voice_id} value={voice.voice_id}>
+                            {voice.name}
                           </option>
                         ))}
                       </optgroup>
                     )}
-                    {otherCloudVoices.length > 0 && (
-                      <optgroup label="🌍 Andere Sprachen">
-                        {otherCloudVoices.map(voice => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name} ({voice.languageCodes[0]})
+                    {otherPremiumVoices.length > 0 && (
+                      <optgroup label="🎙️ Andere Stimmen">
+                        {otherPremiumVoices.map(voice => (
+                          <option key={voice.voice_id} value={voice.voice_id}>
+                            {voice.name}
                           </option>
                         ))}
                       </optgroup>

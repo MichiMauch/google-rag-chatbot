@@ -1,39 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Google Cloud Text-to-Speech API Route
- * Uses the REST API with API key for authentication
+ * ElevenLabs Text-to-Speech API Route
+ * Uses ElevenLabs API for high-quality voice synthesis
  */
 
 interface TTSRequest {
   text: string;
-  languageCode?: string;
-  voiceName?: string;
-  ssmlGender?: 'MALE' | 'FEMALE' | 'NEUTRAL';
-  audioEncoding?: 'MP3' | 'LINEAR16' | 'OGG_OPUS';
-  speakingRate?: number;
-  pitch?: number;
+  voiceId?: string;
+  modelId?: string;
+  stability?: number;
+  similarityBoost?: number;
+  style?: number;
+  useSpeakerBoost?: boolean;
 }
 
-interface GoogleTTSVoice {
-  languageCodes: string[];
+interface ElevenLabsVoice {
+  voice_id: string;
   name: string;
-  ssmlGender: 'MALE' | 'FEMALE' | 'NEUTRAL';
-  naturalSampleRateHertz: number;
+  category: string;
+  labels?: Record<string, string>;
+  description?: string;
+  preview_url?: string;
 }
 
-const TTS_API_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize';
-const VOICES_API_URL = 'https://texttospeech.googleapis.com/v1/voices';
+const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1';
 
 /**
- * POST /api/tts - Synthesize speech from text
+ * POST /api/tts - Synthesize speech from text using ElevenLabs
  */
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Google AI API key not configured' },
+        { error: 'ElevenLabs API key not configured' },
         { status: 500 }
       );
     }
@@ -41,12 +42,12 @@ export async function POST(request: NextRequest) {
     const body: TTSRequest = await request.json();
     const {
       text,
-      languageCode = 'de-DE',
-      voiceName,
-      ssmlGender = 'FEMALE',
-      audioEncoding = 'MP3',
-      speakingRate = 1.0,
-      pitch = 0.0,
+      voiceId = '21m00Tcm4TlvDq8ikWAM', // Default: Rachel voice
+      modelId = 'eleven_turbo_v2_5', // Fast and high quality
+      stability = 0.5,
+      similarityBoost = 0.75,
+      style = 0,
+      useSpeakerBoost = true,
     } = body;
 
     if (!text) {
@@ -56,32 +57,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the request payload for Google Cloud TTS
+    // Build the request payload for ElevenLabs TTS
     const ttsPayload = {
-      input: { text },
-      voice: {
-        languageCode,
-        ...(voiceName ? { name: voiceName } : { ssmlGender }),
-      },
-      audioConfig: {
-        audioEncoding,
-        speakingRate,
-        pitch,
+      text,
+      model_id: modelId,
+      voice_settings: {
+        stability,
+        similarity_boost: similarityBoost,
+        style,
+        use_speaker_boost: useSpeakerBoost,
       },
     };
 
-    // Call Google Cloud TTS API
-    const response = await fetch(`${TTS_API_URL}?key=${apiKey}`, {
+    // Call ElevenLabs TTS API
+    const response = await fetch(`${ELEVENLABS_API_URL}/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
+        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
+        'xi-api-key': apiKey,
       },
       body: JSON.stringify(ttsPayload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Google TTS API error:', errorData);
+      console.error('ElevenLabs TTS API error:', errorData);
       return NextResponse.json(
         {
           error: 'Failed to synthesize speech',
@@ -91,12 +92,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await response.json();
+    // Get the audio data as arrayBuffer
+    const audioBuffer = await response.arrayBuffer();
+
+    // Convert to base64
+    const base64Audio = Buffer.from(audioBuffer).toString('base64');
 
     // Return the audio content (base64 encoded)
     return NextResponse.json({
-      audioContent: data.audioContent,
-      audioEncoding,
+      audioContent: base64Audio,
+      audioEncoding: 'MP3',
     });
   } catch (error: any) {
     console.error('TTS API error:', error);
@@ -108,33 +113,28 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/tts - Get available voices
+ * GET /api/tts - Get available ElevenLabs voices
  */
 export async function GET(request: NextRequest) {
   try {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Google AI API key not configured' },
+        { error: 'ElevenLabs API key not configured' },
         { status: 500 }
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const languageCode = searchParams.get('languageCode');
-
-    // Build the URL with optional language filter
-    let url = `${VOICES_API_URL}?key=${apiKey}`;
-    if (languageCode) {
-      url += `&languageCode=${languageCode}`;
-    }
-
-    // Call Google Cloud TTS API to get available voices
-    const response = await fetch(url);
+    // Call ElevenLabs API to get available voices
+    const response = await fetch(`${ELEVENLABS_API_URL}/voices`, {
+      headers: {
+        'xi-api-key': apiKey,
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Google TTS Voices API error:', errorData);
+      console.error('ElevenLabs Voices API error:', errorData);
       return NextResponse.json(
         {
           error: 'Failed to fetch voices',

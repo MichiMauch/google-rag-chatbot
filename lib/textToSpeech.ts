@@ -10,8 +10,8 @@ export interface TTSPreferences {
   pitch: number;
   voiceURI?: string;
   language?: 'de-DE' | 'en-US' | 'auto';
-  useCloudTTS?: boolean; // Use Google Cloud TTS instead of Web Speech API
-  cloudVoiceName?: string; // Cloud TTS voice name (e.g., 'de-DE-Neural2-F')
+  usePremiumTTS?: boolean; // Use ElevenLabs TTS instead of Web Speech API
+  premiumVoiceId?: string; // ElevenLabs voice ID (e.g., '21m00Tcm4TlvDq8ikWAM')
 }
 
 export interface TTSVoice {
@@ -250,73 +250,51 @@ export function resume(): void {
 }
 
 /**
- * Cloud TTS Voice Interface
+ * ElevenLabs Voice Interface
  */
-export interface CloudTTSVoice {
-  name: string; // e.g., 'de-DE-Neural2-F'
-  languageCodes: string[];
-  ssmlGender: 'MALE' | 'FEMALE' | 'NEUTRAL';
-  naturalSampleRateHertz: number;
+export interface PremiumTTSVoice {
+  voice_id: string;
+  name: string;
+  category: string;
+  labels?: Record<string, string>;
+  description?: string;
+  preview_url?: string;
 }
 
 /**
- * Get available Cloud TTS voices
+ * Get available ElevenLabs voices
  */
-export async function getCloudVoices(languageCode?: string): Promise<CloudTTSVoice[]> {
+export async function getPremiumVoices(): Promise<PremiumTTSVoice[]> {
   try {
-    const url = `/api/tts${languageCode ? `?languageCode=${languageCode}` : ''}`;
+    const url = `/api/tts`;
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error('Failed to fetch Cloud TTS voices:', response.statusText);
+      console.error('Failed to fetch ElevenLabs voices:', response.statusText);
       return [];
     }
 
     const data = await response.json();
     return data.voices || [];
   } catch (error) {
-    console.error('Error fetching Cloud TTS voices:', error);
+    console.error('Error fetching ElevenLabs voices:', error);
     return [];
   }
 }
 
 /**
- * Get German Cloud TTS voices
+ * Speak text using ElevenLabs TTS
  */
-export async function getGermanCloudVoices(): Promise<CloudTTSVoice[]> {
-  const voices = await getCloudVoices('de-DE');
-  return voices.filter(v => v.languageCodes.some(lang => lang.startsWith('de')));
-}
-
-/**
- * Get English Cloud TTS voices
- */
-export async function getEnglishCloudVoices(): Promise<CloudTTSVoice[]> {
-  const voices = await getCloudVoices('en-US');
-  return voices.filter(v => v.languageCodes.some(lang => lang.startsWith('en')));
-}
-
-/**
- * Speak text using Cloud TTS
- */
-export async function speakCloudTTS(
+export async function speakPremiumTTS(
   text: string,
   options?: {
-    languageCode?: string;
-    voiceName?: string;
-    ssmlGender?: 'MALE' | 'FEMALE' | 'NEUTRAL';
-    rate?: number;
-    pitch?: number;
+    voiceId?: string;
     onStart?: () => void;
     onEnd?: () => void;
     onError?: (error: any) => void;
   }
 ): Promise<void> {
   try {
-    // Detect language if not specified
-    const detectedLang = detectLanguage(text);
-    const languageCode = options?.languageCode || detectedLang;
-
     // Call the TTS API
     const response = await fetch('/api/tts', {
       method: 'POST',
@@ -325,12 +303,7 @@ export async function speakCloudTTS(
       },
       body: JSON.stringify({
         text,
-        languageCode,
-        voiceName: options?.voiceName,
-        ssmlGender: options?.ssmlGender || 'FEMALE',
-        audioEncoding: 'MP3',
-        speakingRate: options?.rate || 1.0,
-        pitch: options?.pitch ? (options.pitch - 1.0) * 10 : 0.0, // Convert 0.5-2.0 to -5 to +10
+        voiceId: options?.voiceId || '21m00Tcm4TlvDq8ikWAM', // Default: Rachel voice
       }),
     });
 
@@ -369,7 +342,7 @@ export async function speakCloudTTS(
     // Play the audio
     await audio.play();
   } catch (error) {
-    console.error('Cloud TTS error:', error);
+    console.error('ElevenLabs TTS error:', error);
     options?.onError?.(error);
     throw error;
   }
@@ -389,39 +362,37 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
 }
 
 /**
- * Speak text with automatic fallback (Cloud TTS -> Web Speech API)
+ * Speak text with automatic fallback (ElevenLabs TTS -> Web Speech API)
  */
 export async function speakWithFallback(
   text: string,
   options?: {
-    useCloudTTS?: boolean;
+    usePremiumTTS?: boolean;
     rate?: number;
     pitch?: number;
     voice?: SpeechSynthesisVoice | null;
-    cloudVoiceName?: string;
+    premiumVoiceId?: string;
     onStart?: () => void;
     onEnd?: () => void;
     onError?: (error: any) => void;
   }
 ): Promise<SpeechSynthesisUtterance | null> {
-  // Try Cloud TTS first if enabled
-  if (options?.useCloudTTS) {
+  // Try ElevenLabs TTS first if enabled
+  if (options?.usePremiumTTS) {
     try {
-      await speakCloudTTS(text, {
-        voiceName: options.cloudVoiceName,
-        rate: options.rate,
-        pitch: options.pitch,
+      await speakPremiumTTS(text, {
+        voiceId: options.premiumVoiceId,
         onStart: options.onStart,
         onEnd: options.onEnd,
         onError: (error) => {
-          console.error('Cloud TTS failed, falling back to Web Speech API:', error);
+          console.error('ElevenLabs TTS failed, falling back to Web Speech API:', error);
           // Fallback to Web Speech API
           speak(text, options);
         },
       });
-      return null; // Cloud TTS doesn't return an utterance
+      return null; // ElevenLabs TTS doesn't return an utterance
     } catch (error) {
-      console.error('Cloud TTS failed, falling back to Web Speech API:', error);
+      console.error('ElevenLabs TTS failed, falling back to Web Speech API:', error);
       // Fallback to Web Speech API
       return speak(text, options);
     }
