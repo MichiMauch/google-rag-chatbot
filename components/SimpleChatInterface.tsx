@@ -336,6 +336,7 @@ export default function SimpleChatInterface({
   const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const lastSpokenMessageIdRef = useRef<string | null>(null);
   const router = useRouter();
 
   // Text-to-Speech
@@ -402,17 +403,27 @@ export default function SimpleChatInterface({
 
   // Auto-play TTS for new assistant messages
   useEffect(() => {
-    if (latestAssistantId && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === "assistant" && lastMessage.content) {
-        // Wait a bit for typewriter to finish
-        const timer = setTimeout(() => {
-          tts.speakIfAutoPlay(lastMessage.content, lastMessage.messageId);
-        }, 1500);
-        return () => clearTimeout(timer);
+    if (!latestAssistantId || messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== "assistant" || !lastMessage.content) return;
+
+    // Only speak if we haven't spoken this message yet
+    const messageId = lastMessage.messageId || latestAssistantId;
+    if (lastSpokenMessageIdRef.current === messageId) return;
+
+    // Mark as spoken
+    lastSpokenMessageIdRef.current = messageId;
+
+    // Wait for typewriter to finish
+    const timer = setTimeout(() => {
+      if (tts.isEnabled && tts.autoPlay) {
+        tts.speak(lastMessage.content, messageId);
       }
-    }
-  }, [latestAssistantId, messages, tts]);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [latestAssistantId]); // Only trigger on new assistant messages
 
   async function handleSend(messageText?: string) {
     const textToSend = messageText || input;
