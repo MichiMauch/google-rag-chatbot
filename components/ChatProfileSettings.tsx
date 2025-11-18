@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, X, Shield, Palette, FileText, Calendar, Globe } from "lucide-react";
+import { Save, X, Shield, Palette, FileText, Calendar, Globe, Code } from "lucide-react";
 import { themes } from "@/lib/themes";
 import AllowedDomainsModal from "./AllowedDomainsModal";
+import EmbedCodeModal from "./EmbedCodeModal";
 import toast from "react-hot-toast";
 
 interface ChatConfig {
@@ -42,6 +43,7 @@ export default function ChatProfileSettings({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showDomainsModal, setShowDomainsModal] = useState(false);
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
 
   // Reset config when initialConfig changes
   useEffect(() => {
@@ -103,6 +105,12 @@ export default function ChatProfileSettings({
         onSave={handleSaveAllowedDomains}
       />
 
+      <EmbedCodeModal
+        chatName={chatName}
+        isOpen={showEmbedModal}
+        onClose={() => setShowEmbedModal(false)}
+      />
+
       <div className="space-y-8">
         {/* Basic Info Section */}
         <div className="bg-white shadow rounded-lg p-6">
@@ -149,6 +157,27 @@ export default function ChatProfileSettings({
                 {new Date(config.createdAt).toLocaleString("de-DE")}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Embed Code Section */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Code className="w-5 h-5 mr-2" />
+            Chat einbinden
+          </h3>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Integrieren Sie diesen Chat in Ihre Website mit unserem Embed-Code.
+            </p>
+            <button
+              onClick={() => setShowEmbedModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Code className="w-4 h-4 mr-2" />
+              Embed-Code anzeigen
+            </button>
           </div>
         </div>
 
