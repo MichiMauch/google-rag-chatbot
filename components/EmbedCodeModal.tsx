@@ -282,22 +282,6 @@ export default function EmbedCodeModal({ chatName, isOpen, onClose }: EmbedCodeM
               </ol>
             )}
           </div>
-
-          {/* Test Link */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">🧪 Test-Seite</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Probiere das Embedding auf unserer Demo-Seite aus:
-            </p>
-            <a
-              href="/test-embed.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              Test-Seite öffnen →
-            </a>
-          </div>
         </div>
       </div>
     </div>
