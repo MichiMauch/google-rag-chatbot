@@ -17,10 +17,14 @@ export interface UseTextToSpeechReturn {
   pitch: number;
   availableVoices: SpeechSynthesisVoice[];
   selectedVoice: SpeechSynthesisVoice | null;
+  useCloudTTS: boolean;
+  cloudVoices: TTS.CloudTTSVoice[];
+  cloudVoiceName: string | null;
 
   // Actions
   toggleEnabled: () => void;
   toggleAutoPlay: () => void;
+  toggleCloudTTS: () => void;
   speak: (text: string, messageId?: string) => void;
   stop: () => void;
   pause: () => void;
@@ -28,6 +32,7 @@ export interface UseTextToSpeechReturn {
   setRate: (rate: number) => void;
   setPitch: (pitch: number) => void;
   setVoice: (voice: SpeechSynthesisVoice | null) => void;
+  setCloudVoice: (voiceName: string | null) => void;
 
   // Utilities
   speakIfAutoPlay: (text: string, messageId?: string) => void;
@@ -43,6 +48,9 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
   const [pitch, setPitchState] = useState(1.0);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [useCloudTTS, setUseCloudTTS] = useState(false);
+  const [cloudVoices, setCloudVoices] = useState<TTS.CloudTTSVoice[]>([]);
+  const [cloudVoiceName, setCloudVoiceName] = useState<string | null>(null);
 
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -60,8 +68,10 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     setAutoPlay(prefs.autoPlay);
     setRateState(prefs.rate);
     setPitchState(prefs.pitch);
+    setUseCloudTTS(prefs.useCloudTTS || false);
+    setCloudVoiceName(prefs.cloudVoiceName || null);
 
-    // Load voices
+    // Load Web Speech voices
     const loadVoices = () => {
       const voices = TTS.getAvailableVoices();
       setAvailableVoices(voices);
@@ -80,6 +90,17 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
+
+    // Load Cloud TTS voices
+    const loadCloudVoices = async () => {
+      try {
+        const voices = await TTS.getCloudVoices();
+        setCloudVoices(voices);
+      } catch (error) {
+        console.error('Failed to load Cloud TTS voices:', error);
+      }
+    };
+    loadCloudVoices();
 
     // Cleanup
     return () => {
@@ -113,18 +134,29 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     });
   }, []);
 
+  // Toggle Cloud TTS
+  const toggleCloudTTS = useCallback(() => {
+    setUseCloudTTS(prev => {
+      const newValue = !prev;
+      TTS.savePreferences({ useCloudTTS: newValue });
+      return newValue;
+    });
+  }, []);
+
   // Speak text
-  const speak = useCallback((text: string, messageId?: string) => {
+  const speak = useCallback(async (text: string, messageId?: string) => {
     if (!isSupported || !isEnabled) return;
 
     // Stop any current speech
     TTS.stop();
 
-    // Create utterance
-    const utterance = TTS.speak(text, {
+    // Use speakWithFallback to support both Cloud TTS and Web Speech API
+    const utterance = await TTS.speakWithFallback(text, {
+      useCloudTTS,
       rate,
       pitch,
       voice: selectedVoice,
+      cloudVoiceName: cloudVoiceName || undefined,
       onStart: () => {
         setIsSpeaking(true);
         if (messageId) {
@@ -144,8 +176,10 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
       },
     });
 
-    currentUtteranceRef.current = utterance;
-  }, [isSupported, isEnabled, rate, pitch, selectedVoice]);
+    if (utterance) {
+      currentUtteranceRef.current = utterance;
+    }
+  }, [isSupported, isEnabled, rate, pitch, selectedVoice, useCloudTTS, cloudVoiceName]);
 
   // Stop speaking
   const stop = useCallback(() => {
@@ -183,6 +217,12 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     TTS.savePreferences({ voiceURI: voice?.voiceURI });
   }, []);
 
+  // Set Cloud TTS voice
+  const setCloudVoice = useCallback((voiceName: string | null) => {
+    setCloudVoiceName(voiceName);
+    TTS.savePreferences({ cloudVoiceName: voiceName || undefined });
+  }, []);
+
   // Speak if auto-play is enabled
   const speakIfAutoPlay = useCallback((text: string, messageId?: string) => {
     if (isEnabled && autoPlay) {
@@ -201,10 +241,14 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     pitch,
     availableVoices,
     selectedVoice,
+    useCloudTTS,
+    cloudVoices,
+    cloudVoiceName,
 
     // Actions
     toggleEnabled,
     toggleAutoPlay,
+    toggleCloudTTS,
     speak,
     stop,
     pause,
@@ -212,6 +256,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     setRate,
     setPitch,
     setVoice,
+    setCloudVoice,
 
     // Utilities
     speakIfAutoPlay,

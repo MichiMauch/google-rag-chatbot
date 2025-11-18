@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Volume2, VolumeX, Play, Loader2 } from "lucide-react";
+import { X, Volume2, VolumeX, Play, Loader2, Sparkles } from "lucide-react";
+import { CloudTTSVoice } from "@/lib/textToSpeech";
 
 interface VoiceSettingsModalProps {
   isOpen: boolean;
@@ -12,11 +13,16 @@ interface VoiceSettingsModalProps {
   pitch: number;
   selectedVoice: SpeechSynthesisVoice | null;
   availableVoices: SpeechSynthesisVoice[];
+  useCloudTTS: boolean;
+  cloudVoices: CloudTTSVoice[];
+  cloudVoiceName: string | null;
   onToggleEnabled: () => void;
   onToggleAutoPlay: () => void;
+  onToggleCloudTTS: () => void;
   onRateChange: (rate: number) => void;
   onPitchChange: (pitch: number) => void;
   onVoiceChange: (voice: SpeechSynthesisVoice | null) => void;
+  onCloudVoiceChange: (voiceName: string | null) => void;
   onTest: (text: string) => void;
 }
 
@@ -29,17 +35,22 @@ export default function VoiceSettingsModal({
   pitch,
   selectedVoice,
   availableVoices,
+  useCloudTTS,
+  cloudVoices,
+  cloudVoiceName,
   onToggleEnabled,
   onToggleAutoPlay,
+  onToggleCloudTTS,
   onRateChange,
   onPitchChange,
   onVoiceChange,
+  onCloudVoiceChange,
   onTest,
 }: VoiceSettingsModalProps) {
   const [testText, setTestText] = useState("Hallo! Das ist ein Test der Sprachausgabe.");
   const [isTesting, setIsTesting] = useState(false);
 
-  // Group voices by language
+  // Group Web Speech voices by language
   const germanVoices = availableVoices.filter(v =>
     v.lang.startsWith('de-') || v.lang.startsWith('de_')
   );
@@ -48,6 +59,17 @@ export default function VoiceSettingsModal({
   );
   const otherVoices = availableVoices.filter(v =>
     !v.lang.startsWith('de') && !v.lang.startsWith('en')
+  );
+
+  // Group Cloud TTS voices by language
+  const germanCloudVoices = cloudVoices.filter(v =>
+    v.languageCodes.some(lang => lang.startsWith('de'))
+  );
+  const englishCloudVoices = cloudVoices.filter(v =>
+    v.languageCodes.some(lang => lang.startsWith('en'))
+  );
+  const otherCloudVoices = cloudVoices.filter(v =>
+    !v.languageCodes.some(lang => lang.startsWith('de') || lang.startsWith('en'))
   );
 
   const handleTest = () => {
@@ -65,6 +87,11 @@ export default function VoiceSettingsModal({
     }
     const voice = availableVoices.find(v => v.voiceURI === voiceURI);
     onVoiceChange(voice || null);
+  };
+
+  const handleCloudVoiceSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const voiceName = e.target.value;
+    onCloudVoiceChange(voiceName || null);
   };
 
   if (!isOpen) return null;
@@ -159,45 +186,115 @@ export default function VoiceSettingsModal({
                 </button>
               </div>
 
+              {/* Cloud TTS Toggle */}
+              <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100">
+                <div>
+                  <label className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    Premium Stimmen (Cloud TTS)
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Hochwertige Google Cloud Stimmen für bessere Qualität
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onToggleCloudTTS}
+                  className={`${
+                    useCloudTTS ? 'bg-purple-600' : 'bg-gray-200'
+                  } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2`}
+                >
+                  <span
+                    className={`${
+                      useCloudTTS ? 'translate-x-5' : 'translate-x-0'
+                    } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                  />
+                </button>
+              </div>
+
               {/* Voice Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Stimme
+                  {useCloudTTS ? (
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      Premium Stimme
+                    </span>
+                  ) : (
+                    'Stimme'
+                  )}
                 </label>
-                <select
-                  value={selectedVoice?.voiceURI || ''}
-                  onChange={handleVoiceSelect}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Automatisch (Spracherkennung)</option>
-                  {germanVoices.length > 0 && (
-                    <optgroup label="🇩🇪 Deutsch">
-                      {germanVoices.map(voice => (
-                        <option key={voice.voiceURI} value={voice.voiceURI}>
-                          {voice.name} {voice.localService ? '(lokal)' : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {englishVoices.length > 0 && (
-                    <optgroup label="🇬🇧 English">
-                      {englishVoices.map(voice => (
-                        <option key={voice.voiceURI} value={voice.voiceURI}>
-                          {voice.name} {voice.localService ? '(local)' : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {otherVoices.length > 0 && (
-                    <optgroup label="🌍 Andere Sprachen">
-                      {otherVoices.map(voice => (
-                        <option key={voice.voiceURI} value={voice.voiceURI}>
-                          {voice.name} ({voice.lang})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                {useCloudTTS ? (
+                  <select
+                    value={cloudVoiceName || ''}
+                    onChange={handleCloudVoiceSelect}
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gradient-to-r from-blue-50 to-purple-50"
+                  >
+                    <option value="">Automatisch (Spracherkennung)</option>
+                    {germanCloudVoices.length > 0 && (
+                      <optgroup label="🇩🇪 Deutsch">
+                        {germanCloudVoices.map(voice => (
+                          <option key={voice.name} value={voice.name}>
+                            {voice.name} ({voice.ssmlGender})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {englishCloudVoices.length > 0 && (
+                      <optgroup label="🇬🇧 English">
+                        {englishCloudVoices.map(voice => (
+                          <option key={voice.name} value={voice.name}>
+                            {voice.name} ({voice.ssmlGender})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherCloudVoices.length > 0 && (
+                      <optgroup label="🌍 Andere Sprachen">
+                        {otherCloudVoices.map(voice => (
+                          <option key={voice.name} value={voice.name}>
+                            {voice.name} ({voice.languageCodes[0]})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                ) : (
+                  <select
+                    value={selectedVoice?.voiceURI || ''}
+                    onChange={handleVoiceSelect}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Automatisch (Spracherkennung)</option>
+                    {germanVoices.length > 0 && (
+                      <optgroup label="🇩🇪 Deutsch">
+                        {germanVoices.map(voice => (
+                          <option key={voice.voiceURI} value={voice.voiceURI}>
+                            {voice.name} {voice.localService ? '(lokal)' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {englishVoices.length > 0 && (
+                      <optgroup label="🇬🇧 English">
+                        {englishVoices.map(voice => (
+                          <option key={voice.voiceURI} value={voice.voiceURI}>
+                            {voice.name} {voice.localService ? '(local)' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherVoices.length > 0 && (
+                      <optgroup label="🌍 Andere Sprachen">
+                        {otherVoices.map(voice => (
+                          <option key={voice.voiceURI} value={voice.voiceURI}>
+                            {voice.name} ({voice.lang})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                )}
               </div>
 
               {/* Speed Control */}

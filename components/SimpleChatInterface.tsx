@@ -775,11 +775,16 @@ export default function SimpleChatInterface({
         pitch={tts.pitch}
         selectedVoice={tts.selectedVoice}
         availableVoices={tts.availableVoices}
+        useCloudTTS={tts.useCloudTTS}
+        cloudVoices={tts.cloudVoices}
+        cloudVoiceName={tts.cloudVoiceName}
         onToggleEnabled={tts.toggleEnabled}
         onToggleAutoPlay={tts.toggleAutoPlay}
+        onToggleCloudTTS={tts.toggleCloudTTS}
         onRateChange={tts.setRate}
         onPitchChange={tts.setPitch}
         onVoiceChange={tts.setVoice}
+        onCloudVoiceChange={tts.setCloudVoice}
         onTest={(text) => tts.speak(text)}
       />
     </div>
