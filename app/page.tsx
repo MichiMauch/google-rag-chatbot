@@ -79,7 +79,7 @@ export default function Home() {
               Website-Scraping
             </h3>
             <p className="text-sm text-gray-600">
-              Scrappe bis zu 50 Seiten einer Website mit automatischer Sitemap-Erkennung
+              Scrappe bis zu 500 URLs einer Website mit automatischer Sitemap-Erkennung
             </p>
           </div>
         </div>

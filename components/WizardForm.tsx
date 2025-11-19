@@ -34,6 +34,7 @@ export default function WizardForm() {
   const [discoveringSitemaps, setDiscoveringSitemaps] = useState(false);
   const [discoveredSitemaps, setDiscoveredSitemaps] = useState<SitemapInfo[]>([]);
   const [selectedSitemaps, setSelectedSitemaps] = useState<string[]>([]);
+  const [maxPages, setMaxPages] = useState(100);
 
   // Streaming log state
   const [showLog, setShowLog] = useState(false);
@@ -245,7 +246,7 @@ export default function WizardForm() {
             uploadType,
             themeId: selectedTheme,
             sitemapUrls: selectedSitemaps,
-            maxPages: 100,
+            maxPages,
             systemInstruction: systemInstruction || undefined,
             allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
           }),
@@ -600,6 +601,31 @@ export default function WizardForm() {
                 </div>
                 <p className="text-xs text-gray-500">
                   {selectedSitemaps.length} Sitemap(s) ausgewählt · Die 5 neuesten Artikel werden gescraped (Testing)
+                </p>
+              </div>
+            )}
+
+            {/* Max Pages Input */}
+            {selectedSitemaps.length > 0 && (
+              <div className="space-y-2 mt-4">
+                <label htmlFor="maxPages" className="block text-sm font-medium text-gray-700">
+                  Anzahl der URLs zum Scrapen
+                </label>
+                <input
+                  id="maxPages"
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={maxPages}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setMaxPages(Math.min(500, Math.max(1, value)));
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500">
+                  Die neuesten {maxPages} Artikel werden basierend auf dem Sitemap-Datum ausgewählt (max. 500)
                 </p>
               </div>
             )}

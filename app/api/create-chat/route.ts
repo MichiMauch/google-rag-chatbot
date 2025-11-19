@@ -10,9 +10,9 @@ import { chatConfigs, scrapedPages as scrapedPagesTable } from "@/lib/schema";
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 3600; // 60 minutes timeout for long scraping processes (100+ pages)
+export const maxDuration = 5400; // 90 minutes timeout for long scraping processes (up to 500 pages)
 
-const MAX_PAGES = 100; // Maximum pages to scrape
+const MAX_PAGES = 500; // Maximum pages to scrape
 
 // Event types for streaming
 type LogEvent = {
