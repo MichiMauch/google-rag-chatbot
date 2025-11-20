@@ -51,7 +51,7 @@ export function useSpeechToText(
 
     // Load preferences
     const prefs = STT.loadPreferences();
-    setIsEnabled(prefs.enabled ?? false);
+    setIsEnabled(prefs.enabled ?? true); // Default: enabled if supported
     setLanguageState(prefs.language || 'de-DE');
 
     // Cleanup on unmount
