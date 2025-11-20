@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X, Volume2, VolumeX } from "lucide-react";
+import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
@@ -10,6 +10,7 @@ import { ColorTheme } from "@/lib/themes";
 import { useRouter } from "next/navigation";
 import FeedbackButtons from "./FeedbackButtons";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 import VoiceSettingsModal from "./VoiceSettingsModal";
 
 interface Message {
@@ -341,6 +342,19 @@ export default function SimpleChatInterface({
 
   // Text-to-Speech
   const tts = useTextToSpeech();
+
+  // Speech-to-Text with auto-send functionality
+  const stt = useSpeechToText({
+    autoSend: true,
+    onFinalResult: (transcript) => {
+      // Set the input value to the transcript
+      setInput(transcript);
+      // Auto-send the message
+      setTimeout(() => {
+        handleSend(transcript);
+      }, 100);
+    },
+  });
 
   const fileUris = chatConfig.files;
 
@@ -730,22 +744,49 @@ export default function SimpleChatInterface({
           <div className="max-w-5xl mx-auto">
             <div className="flex space-x-2 sm:space-x-3">
               <textarea
-                value={input}
+                value={stt.isListening ? (stt.interimTranscript || input) : input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Stelle eine Frage zu deinen Dokumenten..."
+                placeholder={stt.isListening ? "Sprechen Sie jetzt..." : "Stelle eine Frage zu deinen Dokumenten..."}
                 className="flex-1 border rounded-xl px-4 py-3 sm:px-5 sm:py-3 focus:outline-none focus:ring-2 resize-none shadow-sm transition-shadow focus:shadow-md"
                 style={{
-                  borderColor: "var(--color-text-light)",
+                  borderColor: stt.isListening ? "var(--color-primary)" : "var(--color-text-light)",
                   backgroundColor: "var(--color-background)",
                   color: "var(--color-text)",
                 }}
                 rows={3}
-                disabled={loading}
+                disabled={loading || stt.isListening}
               />
+
+              {/* Microphone Button */}
+              {stt.isSupported && (
+                <button
+                  onClick={() => {
+                    if (stt.isListening) {
+                      stt.stopListening();
+                    } else {
+                      stt.startListening();
+                    }
+                  }}
+                  disabled={loading}
+                  className="text-white w-12 h-12 sm:w-14 sm:h-14 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                  style={{
+                    backgroundColor: stt.isListening ? "#ef4444" : "var(--color-primary)",
+                  }}
+                  title={stt.isListening ? "Aufnahme stoppen" : "Spracherkennung starten"}
+                >
+                  {stt.isListening ? (
+                    <Mic className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+                  ) : (
+                    <Mic className="w-5 h-5 sm:w-6 sm:h-6" />
+                  )}
+                </button>
+              )}
+
+              {/* Send Button */}
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || stt.isListening}
                 className="text-white w-12 h-12 sm:w-14 sm:h-14 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
                 style={{
                   backgroundColor: "var(--color-primary)",
@@ -758,8 +799,19 @@ export default function SimpleChatInterface({
                 )}
               </button>
             </div>
+
+            {/* Error message */}
+            {stt.error && (
+              <p className="text-xs mt-2 px-1 text-red-500">
+                ⚠️ {stt.error}
+              </p>
+            )}
+
             <p className="text-xs mt-2 sm:mt-3 px-1" style={{ color: "var(--color-text-light)" }}>
-              Drücke Enter zum Senden, Shift+Enter für neue Zeile
+              {stt.isSupported
+                ? "Drücke Enter zum Senden, Shift+Enter für neue Zeile, oder nutze das Mikrofon"
+                : "Drücke Enter zum Senden, Shift+Enter für neue Zeile"
+              }
             </p>
           </div>
         </div>
