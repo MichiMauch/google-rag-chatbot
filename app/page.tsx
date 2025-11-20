@@ -15,7 +15,7 @@ export default function Home() {
               <Bot className="w-5 h-5 text-blue-600 absolute -bottom-1 -right-1" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Google RAG Chatbot
+              NETNODE.AI - NodeChat Package
             </h1>
           </div>
           <a
@@ -36,7 +36,7 @@ export default function Home() {
           </div>
 
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Erstelle deinen eigenen RAG-Chat
+            Erstelle deinen eigenen Demo-Mini-Chat
           </h2>
 
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
