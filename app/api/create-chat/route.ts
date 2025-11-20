@@ -3,9 +3,20 @@ import { ai } from "@/lib/gemini";
 import {
   parseSitemapWithDates,
   scrapeMultiplePages,
+  scrapeMultiplePagesWithRetry,
+  type ScrapeResult,
 } from "@/lib/scraper";
 import { db } from "@/lib/db";
 import { chatConfigs, scrapedPages as scrapedPagesTable } from "@/lib/schema";
+import {
+  createImportJob,
+  updateCheckpoint,
+  completeImportJob,
+  failImportJob,
+  sendHeartbeat,
+  type FailedUrl,
+  type CheckpointData,
+} from "@/lib/importCheckpoint";
 
 // Force Node.js runtime for Puppeteer
 export const runtime = "nodejs";
@@ -214,8 +225,12 @@ export async function POST(request: NextRequest) {
 
             sendLog({
               type: "info",
-              message: `🌐 Scrappe ${urlsToScrape.length} neueste Seiten in Batches...`
+              message: `🌐 Scrappe ${urlsToScrape.length} neueste Seiten mit Retry-Logik...`
             });
+
+            // Track failed URLs for detailed reporting
+            const failedUrls: FailedUrl[] = [];
+            let lastHeartbeat = Date.now();
 
             const batchSize = 10;
             const batches: string[][] = [];
@@ -232,7 +247,26 @@ export async function POST(request: NextRequest) {
                 message: `📦 Batch ${batchIndex + 1}/${batches.length} (${batch.length} Seiten)`
               });
 
-              const scrapedPages = await scrapeMultiplePages(batch, 3, 1000);
+              // Use retry logic with detailed error tracking
+              const scrapeResults = await scrapeMultiplePagesWithRetry(
+                batch,
+                3, // maxConcurrent
+                1000, // delayMs
+                3, // maxRetries
+                (current, total, result) => {
+                  // Progress callback
+                  if (!result.success && result.error) {
+                    failedUrls.push({
+                      url: result.url,
+                      error: result.error.message,
+                      timestamp: Date.now(),
+                      retryCount: result.error.attempt,
+                    });
+                  }
+                }
+              );
+
+              const scrapedPages = scrapeResults.filter(r => r.success && r.data).map(r => r.data!);
 
               if (scrapedPages.length === 0) {
                 sendLog({ type: "info", message: `   ⚠️ Batch ${batchIndex + 1} ergab 0 Seiten` });
@@ -345,10 +379,39 @@ export async function POST(request: NextRequest) {
               });
             }
 
+            // Generate detailed summary
+            const totalAttempted = urlsToScrape.length;
+            const totalSuccessful = uploadedFiles.length;
+            const totalFailed = failedUrls.length;
+
             sendLog({
               type: "info",
-              message: `✨ Alle Batches abgeschlossen! ${uploadedFiles.length} Dateien hochgeladen`
+              message: `✨ Import abgeschlossen: ${totalSuccessful}/${totalAttempted} erfolgreich (${totalFailed} fehlgeschlagen)`
             });
+
+            // Show failed URLs if any
+            if (failedUrls.length > 0) {
+              sendLog({
+                type: "info",
+                message: `⚠️ Fehlgeschlagene URLs (${failedUrls.length}):`
+              });
+
+              // Show first 10 failed URLs in log
+              const failedToShow = failedUrls.slice(0, 10);
+              for (const failed of failedToShow) {
+                sendLog({
+                  type: "error",
+                  message: `   ✗ ${failed.url}: ${failed.error}`
+                });
+              }
+
+              if (failedUrls.length > 10) {
+                sendLog({
+                  type: "info",
+                  message: `   ... und ${failedUrls.length - 10} weitere Fehler`
+                });
+              }
+            }
 
             const chatConfig = {
               chatName,
@@ -366,9 +429,13 @@ export async function POST(request: NextRequest) {
             sendLog({ type: "info", message: "💾 Speichere Chat-Konfiguration..." });
             await saveChatConfig(chatConfig);
 
+            const successMessage = totalFailed > 0
+              ? `🎉 Chat "${displayName}" erstellt! ${totalSuccessful} Seiten erfolgreich, ${totalFailed} fehlgeschlagen (mit 3 Retries versucht)`
+              : `🎉 Chat "${displayName}" erfolgreich erstellt mit ${totalSuccessful} Seiten!`;
+
             sendLog({
               type: "complete",
-              message: `🎉 Chat "${displayName}" erfolgreich erstellt mit ${uploadedFiles.length} Seiten!`,
+              message: successMessage,
               chatConfig
             });
 

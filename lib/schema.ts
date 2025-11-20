@@ -190,6 +190,50 @@ export const pageUpdateLogs = sqliteTable(
   })
 );
 
+// Import Jobs Table - Tracks import progress for checkpointing and resume
+export const importJobs = sqliteTable(
+  "import_jobs",
+  {
+    id: text("id").primaryKey(),
+    chatName: text("chat_name").notNull(),
+    displayName: text("display_name").notNull(),
+
+    // Progress tracking
+    status: text("status").notNull(), // "running" | "completed" | "failed" | "paused"
+    currentBatch: integer("current_batch").default(0),
+    totalBatches: integer("total_batches").notNull(),
+
+    // Statistics
+    totalUrls: integer("total_urls").notNull(),
+    processedUrls: integer("processed_urls").default(0),
+    successfulUrls: integer("successful_urls").default(0),
+    failedUrls: integer("failed_urls").default(0),
+
+    // Detailed tracking (JSON)
+    processedUrlsList: text("processed_urls_list"), // JSON array of processed URLs
+    failedUrlsList: text("failed_urls_list"), // JSON array: [{url, error, timestamp}]
+
+    // Checkpoint data for resume
+    lastCheckpoint: text("last_checkpoint"), // JSON with full state
+
+    // Timing
+    startedAt: integer("started_at"),
+    completedAt: integer("completed_at"),
+    lastActivityAt: integer("last_activity_at"),
+
+    // Error tracking
+    error: text("error"),
+
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    chatNameIdx: index("idx_import_jobs_chat").on(table.chatName),
+    statusIdx: index("idx_import_jobs_status").on(table.status),
+    createdAtIdx: index("idx_import_jobs_created").on(table.createdAt),
+  })
+);
+
 // Chat Configurations Table
 export const chatConfigs = sqliteTable(
   "chat_configs",
@@ -220,6 +264,9 @@ export const chatConfigs = sqliteTable(
 );
 
 // TypeScript types
+export type ImportJob = typeof importJobs.$inferSelect;
+export type NewImportJob = typeof importJobs.$inferInsert;
+
 export type ChatConfig = typeof chatConfigs.$inferSelect;
 export type NewChatConfig = typeof chatConfigs.$inferInsert;
 

@@ -9,6 +9,17 @@ export interface ScrapedPage {
   images?: string[];  // Array of image URLs from content
 }
 
+export interface ScrapeResult {
+  url: string;
+  success: boolean;
+  data?: ScrapedPage;
+  error?: {
+    message: string;
+    type: string;
+    attempt: number;
+  };
+}
+
 /**
  * Find sitemap.xml URL for a website
  */
@@ -328,7 +339,71 @@ export async function launchBrowser(): Promise<Browser> {
 }
 
 /**
- * Scrape multiple URLs with rate limiting
+ * Scrape a page with automatic retry logic (up to maxRetries attempts)
+ */
+export async function scrapePageWithRetry(
+  url: string,
+  browser: Browser,
+  maxRetries = 3
+): Promise<ScrapeResult> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await scrapePage(url, browser);
+
+      if (result !== null) {
+        return {
+          url,
+          success: true,
+          data: result,
+        };
+      }
+
+      // If result is null but no exception, treat as error
+      if (attempt < maxRetries) {
+        console.log(`Attempt ${attempt}/${maxRetries} failed for ${url}, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+      }
+    } catch (error: any) {
+      console.error(`Attempt ${attempt}/${maxRetries} failed for ${url}:`, error.message);
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+      } else {
+        return {
+          url,
+          success: false,
+          error: {
+            message: error.message || 'Unknown error',
+            type: error.name || 'Error',
+            attempt: maxRetries,
+          },
+        };
+      }
+    }
+  }
+
+  return {
+    url,
+    success: false,
+    error: {
+      message: 'Max retries exceeded',
+      type: 'RetryError',
+      attempt: maxRetries,
+    },
+  };
+}
+
+/**
+ * Restart browser to free memory
+ */
+export async function restartBrowser(browser: Browser): Promise<Browser> {
+  console.log('Restarting browser to free memory...');
+  await browser.close();
+  return await launchBrowser();
+}
+
+/**
+ * Scrape multiple URLs with rate limiting and retry logic
  */
 export async function scrapeMultiplePages(
   urls: string[],
@@ -355,6 +430,58 @@ export async function scrapeMultiplePages(
       }
 
       console.log(`Processed ${i + batch.length}/${urls.length} pages`);
+    }
+  } finally {
+    await browser.close();
+  }
+
+  return results;
+}
+
+/**
+ * Scrape multiple URLs with retry logic and detailed error tracking
+ */
+export async function scrapeMultiplePagesWithRetry(
+  urls: string[],
+  maxConcurrent = 3,
+  delayMs = 1000,
+  maxRetries = 3,
+  onProgress?: (current: number, total: number, result: ScrapeResult) => void
+): Promise<ScrapeResult[]> {
+  let browser = await launchBrowser();
+  const results: ScrapeResult[] = [];
+  const batchesBeforeRestart = 50; // Restart browser every 50 batches
+
+  try {
+    // Process in batches
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+      const batch = urls.slice(i, i + maxConcurrent);
+      const batchIndex = Math.floor(i / maxConcurrent);
+
+      // Restart browser periodically to prevent memory issues
+      if (batchIndex > 0 && batchIndex % batchesBeforeRestart === 0) {
+        browser = await restartBrowser(browser);
+      }
+
+      const batchResults = await Promise.all(
+        batch.map((url) => scrapePageWithRetry(url, browser, maxRetries))
+      );
+
+      results.push(...batchResults);
+
+      // Call progress callback if provided
+      if (onProgress) {
+        batchResults.forEach((result, idx) => {
+          onProgress(i + idx + 1, urls.length, result);
+        });
+      }
+
+      // Delay between batches
+      if (i + maxConcurrent < urls.length) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      console.log(`Processed ${i + batch.length}/${urls.length} pages (${results.filter(r => r.success).length} successful)`);
     }
   } finally {
     await browser.close();
