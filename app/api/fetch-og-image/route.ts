@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         return NextResponse.json(
-          { imageUrl: null, error: "Request timeout" },
+          { ogImage: null, error: "Request timeout" },
           { status: 200 }
         );
       }
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { imageUrl: null, error: `HTTP ${response.status}` },
+        { ogImage: null, error: `HTTP ${response.status}` },
         { status: 200 }
       );
     }
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     // Return with cache headers
     return NextResponse.json(
-      { imageUrl },
+      { ogImage: imageUrl },
       {
         status: 200,
         headers: {
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("Error fetching OG image:", error);
     return NextResponse.json(
-      { imageUrl: null, error: error.message },
+      { ogImage: null, error: error.message },
       { status: 200 }
     );
   }

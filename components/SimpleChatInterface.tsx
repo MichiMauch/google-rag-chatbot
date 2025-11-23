@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Loader2, Bot, User, AlertCircle, FileText, ChevronRight, Menu, X, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import { Source } from "@/hooks/useChatHistory";
 import SuggestedQuestions from "./SuggestedQuestions";
@@ -12,11 +13,22 @@ import FeedbackButtons from "./FeedbackButtons";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import VoiceSettingsModal from "./VoiceSettingsModal";
+import TypingIndicator from "./TypingIndicator";
+import CodeBlock from "./CodeBlock";
+import MessageWithCitations from "./MessageWithCitations";
+
+interface Citation {
+  startIndex: number;
+  endIndex: number;
+  text: string;
+  sourceIndices: number[];
+}
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
+  citations?: Citation[];
   messageId?: string;
   feedback?: 1 | -1 | null;
 }
@@ -288,10 +300,12 @@ function SourcesSidebar({
 function TypedMessage({
   content,
   sources,
+  citations,
   onComplete,
 }: {
   content: string;
   sources?: Source[];
+  citations?: Citation[];
   onComplete?: () => void;
 }) {
   const { displayedText, isComplete, skip } = useTypewriter({
@@ -300,6 +314,9 @@ function TypedMessage({
     onComplete,
   });
 
+  // Only show citations when typewriter is complete
+  const displayCitations = isComplete ? citations : undefined;
+
   return (
     <div>
       <div
@@ -307,16 +324,15 @@ function TypedMessage({
         onClick={skip}
         title={isComplete ? "" : "Klicken um vollständigen Text anzuzeigen"}
       >
-        <ReactMarkdown>{displayedText}</ReactMarkdown>
+        <MessageWithCitations
+          content={displayedText}
+          citations={displayCitations}
+          sources={sources}
+        />
         {!isComplete && (
           <span className="inline-block w-1 h-4 ml-1 animate-pulse" style={{ backgroundColor: "var(--color-text-light)" }} />
         )}
       </div>
-      {isComplete && (
-        <>
-          <SourcesDisplay sources={sources} />
-        </>
-      )}
     </div>
   );
 }
@@ -450,7 +466,7 @@ export default function SimpleChatInterface({
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    setUsedSources([]); // Clear sources for new question
+    setUsedSources([]); // Clear sources for new question - reset sidebar
     setLoading(true);
 
     try {
@@ -478,26 +494,44 @@ export default function SimpleChatInterface({
       }
 
       let sources: Source[] | undefined;
+      let citations: Citation[] | undefined;
+
+      // Extract citations first (needed for sidebar filtering)
+      if (data.citations && Array.isArray(data.citations) && data.citations.length > 0) {
+        citations = data.citations;
+      }
 
       if (data.usedFileUris && data.usedFileUris.length > 0) {
-        const usedFiles = fileUris.filter((f) => data.usedFileUris.includes(f.uri));
+        // IMPORTANT: Preserve the order of usedFileUris for correct citation indices
+        sources = data.usedFileUris.map((uri: string) => {
+          const file = fileUris.find((f) => f.uri === uri);
+          if (!file) return null;
+          return {
+            displayName: file.displayName || file.name.split("/").pop() || file.name,
+            url: file.url,
+          };
+        }).filter((s: Source | null): s is Source => s !== null);
 
-        // Extract sources (OG images will be fetched on-demand in SourcesSidebar)
-        sources = usedFiles.map((f) => ({
-          displayName: f.displayName || f.name.split("/").pop() || f.name,
-          url: f.url,
-        }));
-
-        // Update sidebar sources (add unique sources only)
-        setUsedSources(prev => {
-          const newSources = [...prev];
-          sources?.forEach(source => {
-            if (!newSources.find(s => s.displayName === source.displayName)) {
-              newSources.push(source);
-            }
+        // Update sidebar sources - only show cited sources, not all used files
+        if (citations && citations.length > 0 && sources && sources.length > 0) {
+          // Extract unique source indices from citations
+          const citedSourceIndices = new Set<number>();
+          citations.forEach(citation => {
+            citation.sourceIndices.forEach(idx => citedSourceIndices.add(idx));
           });
-          return newSources;
-        });
+
+          // Get only the sources that were actually cited
+          const sourcesArray = sources; // TypeScript type guard
+          const citedSources = Array.from(citedSourceIndices)
+            .map(idx => sourcesArray[idx])
+            .filter((s): s is Source => s !== undefined);
+
+          // Replace sidebar sources with only the cited sources (don't accumulate)
+          setUsedSources(citedSources);
+        } else if (sources && sources.length > 0) {
+          // Fallback: If no citations, show all sources
+          setUsedSources(sources);
+        }
       }
 
       const assistantMessage: Message = {
@@ -506,6 +540,7 @@ export default function SimpleChatInterface({
         messageId: data.messageId || undefined,
         feedback: null,
         sources: sources,
+        citations: citations,
       };
 
       setLatestAssistantId(Date.now().toString());
@@ -630,9 +665,12 @@ export default function SimpleChatInterface({
                 index === messages.length - 1;
 
               return (
-                <div
+                <motion.div
                   key={index}
                   ref={isLastUserMessage ? lastUserMessageRef : null}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={`flex ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}
@@ -642,6 +680,7 @@ export default function SimpleChatInterface({
                       message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
                     }`}
                   >
+                    {/* Avatar */}
                     <div
                       className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-sm"
                       style={{
@@ -653,7 +692,7 @@ export default function SimpleChatInterface({
                           message.role === "user"
                             ? "var(--color-surface)"
                             : "var(--color-text)",
-                        border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
+                        border: message.role === "assistant" ? "2px solid var(--color-text-light)" : "none",
                       }}
                     >
                       {message.role === "user" ? (
@@ -662,18 +701,20 @@ export default function SimpleChatInterface({
                         <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </div>
-                    <div
-                      className="px-4 py-3 sm:px-5 sm:py-3 rounded-2xl shadow-sm"
+                    <motion.div
+                      whileHover={{ scale: 1.01, y: -2 }}
+                      transition={{ duration: 0.2 }}
+                      className="px-4 py-3 sm:px-5 sm:py-3 rounded-2xl shadow-lg backdrop-blur-sm"
                       style={{
                         backgroundColor:
                           message.role === "user"
                             ? "var(--color-primary)"
-                            : "var(--color-surface)",
+                            : "rgba(255, 255, 255, 0.9)",
                         color:
                           message.role === "user"
                             ? "var(--color-surface)"
                             : "var(--color-text)",
-                        border: message.role === "assistant" ? "1px solid var(--color-text-light)" : "none",
+                        border: message.role === "assistant" ? "1px solid rgba(0, 0, 0, 0.08)" : "none",
                       }}
                     >
                   {message.role === "assistant" ? (
@@ -681,14 +722,16 @@ export default function SimpleChatInterface({
                       <TypedMessage
                         content={message.content}
                         sources={message.sources}
+                        citations={message.citations}
                         onComplete={() => setLatestAssistantId(null)}
                       />
                     ) : (
                       <div>
-                        <div className="prose prose-sm sm:prose-base max-w-none">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                        <SourcesDisplay sources={message.sources} />
+                        <MessageWithCitations
+                          content={message.content}
+                          citations={message.citations}
+                          sources={message.sources}
+                        />
                         <FeedbackButtons
                           messageId={message.messageId}
                           initialFeedback={message.feedback}
@@ -705,37 +748,13 @@ export default function SimpleChatInterface({
                   ) : (
                     <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
                   )}
-                    </div>
+                    </motion.div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="flex space-x-2 sm:space-x-3 max-w-[90%] sm:max-w-[85%] lg:max-w-[80%]">
-                  <div
-                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-sm"
-                    style={{
-                      backgroundColor: "var(--color-surface)",
-                      color: "var(--color-text)",
-                      border: "1px solid var(--color-text-light)",
-                    }}
-                  >
-                    <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div
-                    className="px-4 py-3 sm:px-5 sm:py-3 rounded-2xl shadow-sm"
-                    style={{
-                      backgroundColor: "var(--color-surface)",
-                      border: "1px solid var(--color-text-light)",
-                    }}
-                  >
-                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--color-text)" }} />
-                  </div>
-                </div>
-              </div>
-            )}
+            {loading && <TypingIndicator />}
           </div>
         </div>
 

@@ -270,14 +270,14 @@ export async function getPremiumVoices(): Promise<PremiumTTSVoice[]> {
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error('Failed to fetch ElevenLabs voices:', response.statusText);
+      // Silently return empty array - TTS not configured
       return [];
     }
 
     const data = await response.json();
     return data.voices || [];
   } catch (error) {
-    console.error('Error fetching ElevenLabs voices:', error);
+    // Silently return empty array - TTS not configured
     return [];
   }
 }

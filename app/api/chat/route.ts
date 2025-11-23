@@ -189,8 +189,23 @@ export async function POST(request: NextRequest) {
     // Extract text from response
     const text = response.text || "";
 
+    // Helper function: Convert byte offset to character position
+    function byteOffsetToCharIndex(text: string, byteOffset: number): number {
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(text);
+      const slicedBytes = bytes.slice(0, byteOffset);
+      const decoder = new TextDecoder();
+      return decoder.decode(slicedBytes).length;
+    }
+
     // Extract grounding metadata to identify which files were actually used
     let usedFileUris: string[] | undefined;
+    let citations: Array<{
+      startIndex: number;
+      endIndex: number;
+      text: string;
+      sourceIndices: number[];
+    }> = [];
 
     console.log("Full response structure:", JSON.stringify({
       hasCandidates: !!response.candidates,
@@ -244,6 +259,56 @@ export async function POST(request: NextRequest) {
       if (extractedFileUris.length > 0) {
         usedFileUris = extractedFileUris;
       }
+
+      // Extract grounding supports for inline citations
+      if (groundingMetadata.groundingSupports && groundingMetadata.groundingSupports.length > 0) {
+        console.log(`Found ${groundingMetadata.groundingSupports.length} grounding supports`);
+
+        for (const support of groundingMetadata.groundingSupports) {
+          if (support.segment && support.groundingChunkIndices && support.groundingChunkIndices.length > 0) {
+            // Convert byte offsets to character positions
+            const startIndex = support.segment.startIndex !== undefined
+              ? byteOffsetToCharIndex(text, support.segment.startIndex)
+              : 0;
+            const endIndex = support.segment.endIndex !== undefined
+              ? byteOffsetToCharIndex(text, support.segment.endIndex)
+              : text.length;
+
+            // Map chunk indices to source file indices
+            const sourceIndices: number[] = [];
+            for (const chunkIndex of support.groundingChunkIndices) {
+              const chunk = groundingMetadata.groundingChunks?.[chunkIndex];
+              if (chunk) {
+                // Find which extractedFileUri this chunk corresponds to
+                let uri = "";
+                if (chunk.retrievedContext?.title && chunk.retrievedContext?.fileSearchStore) {
+                  uri = `${chunk.retrievedContext.fileSearchStore}/files/${chunk.retrievedContext.title}`;
+                } else if (chunk.retrievedContext?.uri) {
+                  uri = chunk.retrievedContext.uri;
+                }
+
+                if (uri) {
+                  const sourceIndex = extractedFileUris.indexOf(uri);
+                  if (sourceIndex !== -1 && !sourceIndices.includes(sourceIndex)) {
+                    sourceIndices.push(sourceIndex);
+                  }
+                }
+              }
+            }
+
+            if (sourceIndices.length > 0) {
+              citations.push({
+                startIndex,
+                endIndex,
+                text: support.segment.text || text.substring(startIndex, endIndex),
+                sourceIndices,
+              });
+            }
+          }
+        }
+
+        console.log(`Extracted ${citations.length} citations`);
+      }
     } else {
       console.log("No grounding metadata found in response");
     }
@@ -273,6 +338,7 @@ export async function POST(request: NextRequest) {
       success: true,
       response: text,
       usedFileUris,
+      citations: citations.length > 0 ? citations : undefined,
       messageId,
     });
   } catch (error: any) {
