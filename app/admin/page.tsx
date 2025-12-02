@@ -184,14 +184,13 @@ export default function AdminPage() {
     loadStats();
   }, []);
 
-  // Helper function to get chat name from store display name
-  // Store displayName format is: "chatName - displayName"
-  // We need to extract just the chatName part
+  // Helper function to get chat name (slug) from store display name
+  // Store displayName format is: "DisplayName - chatSlug" (e.g., "Bauverwaltung Muhen - bauverwaltung-muhen")
+  // We need to extract the chatSlug part (second part)
   function getChatNameFromStore(storeDisplayName: string): string {
-    // Extract the store name from the full name (format: fileSearchStores/chatName-displayName-xxxx)
-    // But we can also parse it from the displayName which has format: "chatName - displayName"
     const parts = storeDisplayName.split(' - ');
-    return parts[0]; // Return just the chatName part
+    // Return the slug (second part), or first part as fallback for old format
+    return parts.length > 1 ? parts[1] : parts[0];
   }
 
   // Auto-scroll logs to bottom

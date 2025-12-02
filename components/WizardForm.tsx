@@ -170,55 +170,35 @@ export default function WizardForm() {
       setShowLog(true);
 
       if (uploadType === "documents") {
-        // Upload files first
-        setLogs(["📤 Dateien werden hochgeladen..."]);
-        const uploadedFiles = [];
-
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          setLogs(prev => [...prev, `📎 Datei ${i + 1}/${files.length}: ${file.name}`]);
-
-          const formData = new FormData();
-          formData.append("file", file);
-
-          const uploadResponse = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.error || `Fehler beim Hochladen von ${file.name}`);
-          }
-
-          const uploadData = await uploadResponse.json();
-          uploadedFiles.push(uploadData.file);
-          setLogs(prev => [...prev, `   ✓ ${file.name} hochgeladen`]);
-        }
-
-        setLogs(prev => [...prev, `✅ Alle Dateien hochgeladen, erstelle Chat...`]);
-
         // Parse allowed domains
         const allowedDomainsArray = allowedDomains
           .split(",")
           .map((d) => d.trim())
           .filter((d) => d.length > 0);
 
-        // Create chat with SSE streaming
+        // Send files directly to create-chat via FormData
+        setLogs(["📦 Erstelle Chat mit Dokumenten..."]);
+
+        const formData = new FormData();
+        formData.append("chatName", chatSlug);
+        formData.append("displayName", chatName);
+        formData.append("uploadType", uploadType);
+        formData.append("themeId", selectedTheme);
+        if (systemInstruction) {
+          formData.append("systemInstruction", systemInstruction);
+        }
+        if (allowedDomainsArray.length > 0) {
+          formData.append("allowedDomains", JSON.stringify(allowedDomainsArray));
+        }
+
+        // Append all files
+        for (const file of files) {
+          formData.append("files", file);
+        }
+
         const response = await fetch("/api/create-chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            chatName: chatSlug,
-            displayName: chatName,
-            uploadType,
-            themeId: selectedTheme,
-            files: uploadedFiles,
-            systemInstruction: systemInstruction || undefined,
-            allowedDomains: allowedDomainsArray.length > 0 ? allowedDomainsArray : undefined,
-          }),
+          body: formData, // No Content-Type header - browser sets it with boundary
         });
 
         if (!response.ok) {

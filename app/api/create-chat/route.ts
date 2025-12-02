@@ -58,18 +58,48 @@ async function saveChatConfig(chatConfig: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const {
-      chatName,
-      displayName,
-      uploadType,
-      themeId,
-      files,
-      sitemapUrl,
-      sitemapUrls,
-      maxPages = MAX_PAGES,
-      systemInstruction,
-      allowedDomains,
-    } = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+
+    let chatName: string;
+    let displayName: string;
+    let uploadType: string;
+    let themeId: string;
+    let files: File[] = [];
+    let sitemapUrl: string | undefined;
+    let sitemapUrls: string[] | undefined;
+    let maxPages = MAX_PAGES;
+    let systemInstruction: string | undefined;
+    let allowedDomains: string[] | undefined;
+
+    // Parse FormData (for documents) or JSON (for websites)
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      chatName = formData.get("chatName") as string;
+      displayName = formData.get("displayName") as string;
+      uploadType = formData.get("uploadType") as string;
+      themeId = formData.get("themeId") as string;
+      systemInstruction = formData.get("systemInstruction") as string || undefined;
+
+      const allowedDomainsRaw = formData.get("allowedDomains") as string;
+      if (allowedDomainsRaw) {
+        allowedDomains = JSON.parse(allowedDomainsRaw);
+      }
+
+      // Get all files
+      files = formData.getAll("files") as File[];
+    } else {
+      // JSON body (for websites)
+      const body = await request.json();
+      chatName = body.chatName;
+      displayName = body.displayName;
+      uploadType = body.uploadType;
+      themeId = body.themeId;
+      sitemapUrl = body.sitemapUrl;
+      sitemapUrls = body.sitemapUrls;
+      maxPages = body.maxPages || MAX_PAGES;
+      systemInstruction = body.systemInstruction;
+      allowedDomains = body.allowedDomains;
+    }
 
     if (!chatName || !displayName || !uploadType || !themeId) {
       return NextResponse.json(
@@ -108,24 +138,46 @@ export async function POST(request: NextRequest) {
 
             sendLog({
               type: "info",
-              message: `📄 Importiere ${files.length} Datei(en) in File Search Store...`
+              message: `📄 Lade ${files.length} Datei(en) in File Search Store hoch...`
             });
+
+            const fsSync = await import("fs");
 
             for (let i = 0; i < files.length; i++) {
               const file = files[i];
+              const originalName = file.name;
 
               sendLog({
                 type: "progress",
                 current: i + 1,
                 total: files.length,
-                message: `📎 Importiere ${i + 1}/${files.length}: ${file.displayName}`
+                message: `📎 Lade hoch ${i + 1}/${files.length}: ${originalName}`
               });
 
               try {
-                let operation = await ai.fileSearchStores.importFile({
+                // Create controlled filename (like websites do)
+                const filename = `doc-${Date.now()}-${originalName
+                  .normalize('NFC')
+                  .replace(/[^a-z0-9.]/gi, "-")
+                  .substring(0, 50)}`;
+
+                // Write file to temp location
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const tempPath = `/tmp/${filename}`;
+                fsSync.writeFileSync(tempPath, buffer);
+
+                // Upload via uploadToFileSearchStore (like websites)
+                let operation = await ai.fileSearchStores.uploadToFileSearchStore({
                   fileSearchStoreName: fileSearchStore.name!,
-                  fileName: file.name,
+                  file: tempPath,
+                  config: {
+                    mimeType: file.type || "application/octet-stream",
+                    displayName: originalName,
+                  },
                 });
+
+                // Clean up temp file
+                fsSync.unlinkSync(tempPath);
 
                 const maxWaitTime = 60000;
                 const startTime = Date.now();
@@ -133,8 +185,8 @@ export async function POST(request: NextRequest) {
 
                 while (!operation.done) {
                   if (Date.now() - startTime > maxWaitTime) {
-                    console.error(`Timeout importing file: ${file.displayName}`);
-                    sendLog({ type: "error", message: `⏱️ Timeout bei: ${file.displayName}` });
+                    console.error(`Timeout uploading file: ${originalName}`);
+                    sendLog({ type: "error", message: `⏱️ Timeout bei: ${originalName}` });
                     break;
                   }
 
@@ -147,24 +199,26 @@ export async function POST(request: NextRequest) {
                 }
 
                 if (operation.done && !operation.error) {
+                  // URI format matches what Gemini returns in grounding metadata
+                  const fileUri = `${fileSearchStore.name}/files/${filename}`;
                   uploadedFiles.push({
-                    name: file.name,
-                    displayName: file.displayName,
-                    mimeType: file.mimeType,
-                    uri: file.uri,
+                    name: filename,
+                    displayName: originalName,
+                    mimeType: file.type || "application/octet-stream",
+                    uri: fileUri,
                   });
-                  sendLog({ type: "info", message: `   ✓ ${file.displayName}` });
+                  sendLog({ type: "info", message: `   ✓ ${originalName}` });
                 } else if (operation.error) {
-                  console.error(`Import failed for ${file.displayName}:`, operation.error);
-                  sendLog({ type: "error", message: `   ✗ Fehler bei ${file.displayName}` });
+                  console.error(`Upload failed for ${originalName}:`, operation.error);
+                  sendLog({ type: "error", message: `   ✗ Fehler bei ${originalName}` });
                 }
               } catch (error: any) {
-                console.error(`Error importing file ${file.displayName}:`, error);
+                console.error(`Error uploading file ${originalName}:`, error);
                 sendLog({ type: "error", message: `   ✗ Fehler: ${error.message}` });
               }
             }
 
-            sendLog({ type: "info", message: `✅ ${uploadedFiles.length} Datei(en) erfolgreich importiert` });
+            sendLog({ type: "info", message: `✅ ${uploadedFiles.length} Datei(en) erfolgreich hochgeladen` });
 
             const chatConfig = {
               chatName,

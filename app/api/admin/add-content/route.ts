@@ -28,17 +28,37 @@ type LogEvent = {
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
-  let body;
-  try {
-    body = await request.json();
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const contentTypeHeader = request.headers.get("content-type") || "";
 
-  const { chatName, contentType, sitemapUrl, file, apiUrl, maxPages = MAX_PAGES } = body;
+  let chatName: string;
+  let contentType: string;
+  let sitemapUrl: string | undefined;
+  let apiUrl: string | undefined;
+  let maxPages = MAX_PAGES;
+  let uploadedFiles: File[] = [];
+
+  // Parse FormData (for document uploads) or JSON (for sitemaps/APIs)
+  if (contentTypeHeader.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    chatName = formData.get("chatName") as string;
+    contentType = formData.get("contentType") as string;
+    uploadedFiles = formData.getAll("files") as File[];
+  } else {
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
+    chatName = body.chatName;
+    contentType = body.contentType;
+    sitemapUrl = body.sitemapUrl;
+    apiUrl = body.apiUrl;
+    maxPages = body.maxPages || MAX_PAGES;
+  }
 
   if (!chatName || !contentType) {
     return NextResponse.json(
@@ -117,7 +137,7 @@ export async function POST(request: NextRequest) {
             batches.push(urlsToScrape.slice(i, i + batchSize));
           }
 
-          let uploadedFiles = 0;
+          let uploadedCount = 0;
 
           for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
             const batch = batches[batchIndex];
@@ -145,7 +165,7 @@ export async function POST(request: NextRequest) {
 
               sendLog({
                 type: "progress",
-                current: uploadedFiles + pageIndex + 1,
+                current: uploadedCount + pageIndex + 1,
                 total: urlsToScrape.length,
                 message: `📄 Uploade: ${page.title || page.url}`
               });
@@ -218,7 +238,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            uploadedFiles += scrapedPages.length;
+            uploadedCount += scrapedPages.length;
 
             sendLog({
               type: "batch_complete",
@@ -243,70 +263,110 @@ export async function POST(request: NextRequest) {
 
           sendLog({
             type: "complete",
-            message: `🎉 ${uploadedFiles} Seiten erfolgreich hinzugefügt!`
+            message: `🎉 ${uploadedCount} Seiten erfolgreich hinzugefügt!`
           });
 
         } else if (contentType === "document") {
-          if (!file) {
-            sendLog({ type: "error", message: "❌ Keine Datei angegeben" });
+          if (!uploadedFiles || uploadedFiles.length === 0) {
+            sendLog({ type: "error", message: "❌ Keine Dateien angegeben" });
             controller.close();
             return;
           }
 
-          sendLog({ type: "info", message: `📄 Importiere Dokument: ${file.displayName}` });
+          sendLog({ type: "info", message: `📄 Lade ${uploadedFiles.length} Dokument(e) hoch...` });
 
-          try {
-            let operation = await ai.fileSearchStores.importFile({
-              fileSearchStoreName: fileSearchStoreName,
-              fileName: file.name,
+          const existingFilesConfig = chatConfig.files ? JSON.parse(chatConfig.files) : [];
+          let successCount = 0;
+
+          for (let i = 0; i < uploadedFiles.length; i++) {
+            const file = uploadedFiles[i];
+            const originalName = file.name;
+
+            sendLog({
+              type: "progress",
+              current: i + 1,
+              total: uploadedFiles.length,
+              message: `📎 Lade hoch ${i + 1}/${uploadedFiles.length}: ${originalName}`
             });
 
-            const maxWaitTime = 60000;
-            const startTime = Date.now();
-            let attempt = 0;
+            try {
+              // Create controlled filename (like websites do)
+              const filename = `doc-${Date.now()}-${originalName
+                .normalize('NFC')
+                .replace(/[^a-z0-9.]/gi, "-")
+                .substring(0, 50)}`;
 
-            while (!operation.done) {
-              if (Date.now() - startTime > maxWaitTime) {
-                sendLog({ type: "error", message: `⏱️ Timeout bei: ${file.displayName}` });
-                break;
+              // Write file to temp location
+              const buffer = Buffer.from(await file.arrayBuffer());
+              const tempPath = path.join(os.tmpdir(), filename);
+              await fs.writeFile(tempPath, buffer);
+
+              // Upload via uploadToFileSearchStore (like websites)
+              let operation = await ai.fileSearchStores.uploadToFileSearchStore({
+                fileSearchStoreName: fileSearchStoreName,
+                file: tempPath,
+                config: {
+                  mimeType: file.type || "application/octet-stream",
+                  displayName: originalName,
+                },
+              });
+
+              // Clean up temp file
+              await fs.unlink(tempPath);
+
+              const maxWaitTime = 60000;
+              const startTime = Date.now();
+              let attempt = 0;
+
+              while (!operation.done) {
+                if (Date.now() - startTime > maxWaitTime) {
+                  sendLog({ type: "error", message: `⏱️ Timeout bei: ${originalName}` });
+                  break;
+                }
+
+                const delays = [3000, 5000, 8000, 10000];
+                const delay = delays[Math.min(attempt, delays.length - 1)];
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                attempt++;
+
+                operation = await ai.operations.get({ operation: operation });
               }
 
-              const delays = [3000, 5000, 8000, 10000];
-              const delay = delays[Math.min(attempt, delays.length - 1)];
-              await new Promise((resolve) => setTimeout(resolve, delay));
-              attempt++;
-
-              operation = await ai.operations.get({ operation: operation });
+              if (operation.done && !operation.error) {
+                // URI format matches what Gemini returns in grounding metadata
+                const fileUri = `${fileSearchStoreName}/files/${filename}`;
+                existingFilesConfig.push({
+                  name: filename,
+                  displayName: originalName,
+                  mimeType: file.type || "application/octet-stream",
+                  uri: fileUri,
+                });
+                successCount++;
+                sendLog({ type: "info", message: `   ✓ ${originalName}` });
+              } else if (operation.error) {
+                sendLog({ type: "error", message: `   ✗ Fehler bei ${originalName}` });
+              }
+            } catch (error: any) {
+              sendLog({ type: "error", message: `   ✗ Fehler: ${error.message}` });
             }
+          }
 
-            if (operation.done && !operation.error) {
-              // Update chat config to include new file
-              const existingFiles = chatConfig.files ? JSON.parse(chatConfig.files) : [];
-              existingFiles.push({
-                name: file.name,
-                displayName: file.displayName,
-                mimeType: file.mimeType,
-                uri: file.uri,
-              });
+          // Update chat config with all new files
+          if (successCount > 0) {
+            await db
+              .update(chatConfigs)
+              .set({
+                files: JSON.stringify(existingFilesConfig),
+                updatedAt: Date.now(),
+              })
+              .where(eq(chatConfigs.chatName, chatName));
 
-              await db
-                .update(chatConfigs)
-                .set({
-                  files: JSON.stringify(existingFiles),
-                  updatedAt: Date.now(),
-                })
-                .where(eq(chatConfigs.chatName, chatName));
-
-              sendLog({ type: "info", message: `✓ ${file.displayName} erfolgreich importiert` });
-              sendLog({
-                type: "complete",
-                message: `🎉 Dokument erfolgreich hinzugefügt!`
-              });
-            } else if (operation.error) {
-              sendLog({ type: "error", message: `❌ Fehler beim Import: ${operation.error}` });
-            }
-          } catch (error: any) {
-            sendLog({ type: "error", message: `❌ Fehler: ${error.message}` });
+            sendLog({
+              type: "complete",
+              message: `🎉 ${successCount} Dokument(e) erfolgreich hinzugefügt!`
+            });
+          } else {
+            sendLog({ type: "error", message: "❌ Keine Dokumente konnten hochgeladen werden" });
           }
 
         } else if (contentType === "json-api") {

@@ -13,8 +13,13 @@ export async function uploadFile(file: File) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // Normalize the filename to NFC form to convert combined Unicode characters
+    // (e.g., u + combining diaeresis) to precomposed form (e.g., ü)
+    // This prevents "Cannot convert argument to a ByteString" errors
+    const normalizedFileName = file.name.normalize('NFC');
+
     // Create a temporary file path (for Node.js environment)
-    const tempPath = `/tmp/${Date.now()}-${file.name}`;
+    const tempPath = `/tmp/${Date.now()}-${normalizedFileName}`;
     const fs = await import('fs');
     fs.writeFileSync(tempPath, buffer);
 
@@ -23,7 +28,7 @@ export async function uploadFile(file: File) {
       file: tempPath,
       config: {
         mimeType: file.type,
-        displayName: file.name,
+        displayName: normalizedFileName,
       },
     });
 

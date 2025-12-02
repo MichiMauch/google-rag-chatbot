@@ -21,7 +21,8 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
   const [isAddingSitemap, setIsAddingSitemap] = useState(false);
   const [showSitemapInput, setShowSitemapInput] = useState(false);
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -90,76 +91,79 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    setUploadingFile(file);
+  const handleMultipleFileUpload = async (files: FileList) => {
+    const fileArray = Array.from(files);
+    setUploadingFiles(fileArray);
+    setUploadProgress({ current: 0, total: fileArray.length });
     setIsUploading(true);
     setProgressLogs([]);
     setShowProgressModal(true);
 
     try {
-      // First upload the file to Google AI
+      setProgressLogs((prev) => [...prev, `📤 ${fileArray.length} Dokument(e) werden hochgeladen...`]);
+
+      // Send all files directly via FormData to add-content
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("chatName", chatName);
+      formData.append("contentType", "document");
 
-      const uploadResponse = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("File upload failed");
+      for (const file of fileArray) {
+        formData.append("files", file);
       }
 
-      const uploadData = await uploadResponse.json();
-
-      // Then add it to the chat
       const response = await fetch("/api/admin/add-content", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatName,
-          contentType: "document",
-          file: uploadData.file,
-        }),
+        body: formData, // No Content-Type header - browser sets it with boundary
       });
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
+      let successCount = 0;
+      let errorCount = 0;
 
       if (reader) {
+        let buffer = "";
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const text = decoder.decode(value);
-          const lines = text.split("\n");
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             if (line.startsWith("data: ")) {
-              const event = JSON.parse(line.slice(6));
-              if (event.message) {
-                setProgressLogs((prev) => [...prev, event.message]);
-              }
-              if (event.type === "complete") {
-                toast.success("Dokument erfolgreich hinzugefügt!");
-                setUploadingFile(null);
-                setShowDocumentUpload(false);
-                // Reload page to show new document
-                setTimeout(() => window.location.reload(), 1500);
-              } else if (event.type === "error") {
-                toast.error("Fehler beim Hinzufügen des Dokuments");
+              try {
+                const event = JSON.parse(line.slice(6));
+                if (event.message) {
+                  setProgressLogs((prev) => [...prev, event.message]);
+                }
+                if (event.current && event.total) {
+                  setUploadProgress({ current: event.current, total: event.total });
+                }
+                if (event.type === "complete") {
+                  toast.success(event.message || "Dokumente erfolgreich hinzugefügt!");
+                  // Reload page to show new documents
+                  setTimeout(() => window.location.reload(), 2000);
+                } else if (event.type === "error" && !event.message?.includes("✗")) {
+                  errorCount++;
+                }
+              } catch (e) {
+                console.error("Error parsing SSE event:", e);
               }
             }
           }
         }
       }
     } catch (error: any) {
-      console.error("Error uploading document:", error);
-      toast.error("Fehler beim Hochladen des Dokuments");
+      console.error("Error in multiple file upload:", error);
+      toast.error("Fehler beim Hochladen der Dokumente");
       setProgressLogs((prev) => [...prev, `❌ Fehler: ${error.message}`]);
     } finally {
       setIsUploading(false);
-      setUploadingFile(null);
+      setUploadingFiles([]);
+      setUploadProgress({ current: 0, total: 0 });
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -384,16 +388,19 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
             className="flex items-center justify-center space-x-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
           >
             <FileText className="w-5 h-5 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Dokument</span>
+            <span className="text-sm font-medium text-gray-700">Dokumente</span>
             <Upload className="w-4 h-4 text-gray-600" />
           </button>
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept=".pdf,.txt,.doc,.docx,.xlsx,.xls,.csv,.json,.xml,.md,.rtf"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFileUpload(file);
+              const files = e.target.files;
+              if (files && files.length > 0) {
+                handleMultipleFileUpload(files);
+              }
             }}
             className="hidden"
           />
@@ -515,7 +522,9 @@ export default function ContentTab({ chatName, chatConfig }: ContentTabProps) {
               <h3 className="text-lg font-semibold text-gray-900">
                 {isAddingSitemap ? "Sitemap wird hinzugefügt..." :
                  isAddingJsonApi ? "JSON-API wird importiert..." :
-                 "Dokument wird hochgeladen..."}
+                 uploadProgress.total > 1
+                   ? `Dokumente werden hochgeladen (${uploadProgress.current}/${uploadProgress.total})...`
+                   : "Dokument wird hochgeladen..."}
               </h3>
               {!isAddingSitemap && !isUploading && !isAddingJsonApi && (
                 <button
