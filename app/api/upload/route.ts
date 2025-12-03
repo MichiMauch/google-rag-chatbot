@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFile, ai } from "@/lib/gemini";
+import fs from "fs";
+import path from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +42,33 @@ export async function POST(request: NextRequest) {
       uploadedFile = await ai.files.get({ name: uploadedFile.name });
     }
 
+    // Save file locally for preview functionality
+    let localPath: string | undefined;
+    try {
+      const uploadsDir = path.join(process.cwd(), "uploads");
+
+      // Ensure uploads directory exists
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Use Gemini file ID as unique filename, preserve original extension
+      const fileId = uploadedFile.name?.replace("files/", "") || Date.now().toString();
+      const originalExt = path.extname(file.name);
+      const localFileName = `${fileId}${originalExt}`;
+      const localFilePath = path.join(uploadsDir, localFileName);
+
+      // Write file to local storage
+      const buffer = Buffer.from(await file.arrayBuffer());
+      fs.writeFileSync(localFilePath, buffer);
+
+      localPath = localFileName;
+      console.log(`[Upload] File saved locally: ${localFileName}`);
+    } catch (localError) {
+      console.error("Error saving file locally:", localError);
+      // Continue without local storage - preview won't work but upload succeeded
+    }
+
     return NextResponse.json({
       success: true,
       file: {
@@ -48,6 +77,7 @@ export async function POST(request: NextRequest) {
         mimeType: uploadedFile.mimeType,
         sizeBytes: uploadedFile.sizeBytes,
         uri: uploadedFile.uri,
+        localPath, // Path to local file for preview
       },
     });
   } catch (error: any) {

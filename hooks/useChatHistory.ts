@@ -4,6 +4,9 @@ export interface Source {
   displayName: string;
   url?: string; // Only present for scraped websites
   image?: string; // Teaser image URL
+  fileName?: string; // Google Gemini file name (e.g., "files/abc123") for uploaded documents
+  mimeType?: string; // MIME type for determining preview type
+  localPath?: string; // Local file path for document preview
 }
 
 export interface ChatSession {

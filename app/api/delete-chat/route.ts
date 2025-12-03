@@ -9,6 +9,8 @@ import {
   updateHistory,
 } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,6 +160,51 @@ export async function POST(request: NextRequest) {
           // Delete chat sessions (this will cascade delete chatMessages)
           await db.delete(chatSessions).where(eq(chatSessions.chatName, chatName));
           sendLog({ type: "info", message: "   ✅ Chat-Sessions gelöscht" });
+
+          // Delete local uploaded files
+          sendLog({ type: "info", message: "   📁 Lösche lokale Dateien..." });
+          try {
+            // Get chat config to find local file paths
+            const configResult = await db.select().from(chatConfigs).where(eq(chatConfigs.chatName, chatName)).limit(1);
+            if (configResult.length > 0 && configResult[0].files) {
+              // Parse files JSON if it's a string
+              let files: Array<{ localPath?: string }> = [];
+              const rawFiles = configResult[0].files;
+              if (typeof rawFiles === "string") {
+                try {
+                  files = JSON.parse(rawFiles);
+                } catch {
+                  files = [];
+                }
+              } else if (Array.isArray(rawFiles)) {
+                files = rawFiles as Array<{ localPath?: string }>;
+              }
+              const uploadsDir = path.join(process.cwd(), "uploads");
+              let deletedCount = 0;
+
+              for (const file of files) {
+                if (file.localPath) {
+                  const filePath = path.join(uploadsDir, file.localPath);
+                  // Security: Ensure path is within uploads directory
+                  if (filePath.startsWith(uploadsDir) && fs.existsSync(filePath)) {
+                    try {
+                      fs.unlinkSync(filePath);
+                      deletedCount++;
+                    } catch (fileError) {
+                      console.error(`Error deleting file ${filePath}:`, fileError);
+                    }
+                  }
+                }
+              }
+
+              if (deletedCount > 0) {
+                sendLog({ type: "info", message: `   ✅ ${deletedCount} lokale Datei(en) gelöscht` });
+              }
+            }
+          } catch (localError) {
+            console.error("Error deleting local files:", localError);
+            sendLog({ type: "info", message: "   ⚠️ Fehler beim Löschen lokaler Dateien (fortfahren)" });
+          }
 
           // Finally, delete config
           await db.delete(chatConfigs).where(eq(chatConfigs.chatName, chatName));

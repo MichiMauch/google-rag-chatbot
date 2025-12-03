@@ -9,6 +9,7 @@ interface UploadedFile {
   mimeType: string;
   sizeBytes: string;
   uri: string;
+  localPath?: string; // Local file path for preview
 }
 
 interface FileUploadProps {

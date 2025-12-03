@@ -8,12 +8,13 @@ import { Source } from "@/hooks/useChatHistory";
 interface CitationMarkerProps {
   citationNumber: number;
   source: Source;
+  onDocumentClick?: (source: Source) => void; // Callback for document sources without URL
 }
 
 // Global cache to prevent duplicate fetches across all citation markers
 const imageCache = new Map<string, string | null>();
 
-export default function CitationMarker({ citationNumber, source }: CitationMarkerProps) {
+export default function CitationMarker({ citationNumber, source, onDocumentClick }: CitationMarkerProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [ogImage, setOgImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,6 +115,26 @@ export default function CitationMarker({ citationNumber, source }: CitationMarke
                     </p>
                   </div>
                 </a>
+              ) : source.localPath && onDocumentClick ? (
+                <button
+                  onClick={() => onDocumentClick(source)}
+                  className="block w-full text-left group"
+                >
+                  <div className="relative h-32 bg-gray-100 flex items-center justify-center">
+                    <FileText className="w-12 h-12 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                  </div>
+                  <div className="p-3 bg-white">
+                    <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      {source.displayName}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 flex items-center">
+                      <FileText className="w-3 h-3 mr-1" />
+                      Dokument öffnen
+                    </p>
+                  </div>
+                </button>
               ) : (
                 <div>
                   <div className="h-32 bg-gray-100 flex items-center justify-center">

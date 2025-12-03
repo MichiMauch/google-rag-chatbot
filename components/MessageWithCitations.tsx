@@ -17,12 +17,14 @@ interface MessageWithCitationsProps {
   content: string;
   citations?: Citation[];
   sources?: Source[];
+  onDocumentClick?: (source: Source) => void;
 }
 
 export default function MessageWithCitations({
   content,
   citations,
   sources,
+  onDocumentClick,
 }: MessageWithCitationsProps) {
   console.log("MessageWithCitations:", { citations, sources });
 
@@ -134,6 +136,7 @@ export default function MessageWithCitations({
                       key={citNum}
                       citationNumber={citNum}
                       source={source}
+                      onDocumentClick={onDocumentClick}
                     />
                   ) : null;
                 })}
@@ -160,6 +163,13 @@ export default function MessageWithCitations({
                   >
                     {source.displayName}
                   </a>
+                ) : source.localPath && onDocumentClick ? (
+                  <button
+                    onClick={() => onDocumentClick(source)}
+                    className="text-gray-700 hover:text-blue-600 underline decoration-dotted hover:decoration-solid transition-colors line-clamp-1 text-left"
+                  >
+                    {source.displayName}
+                  </button>
                 ) : (
                   <span className="text-gray-700 line-clamp-1">{source.displayName}</span>
                 )}

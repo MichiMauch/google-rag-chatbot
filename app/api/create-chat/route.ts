@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import path from "path";
 import { ai } from "@/lib/gemini";
 import {
   parseSitemapWithDates,
@@ -156,15 +157,26 @@ export async function POST(request: NextRequest) {
 
               try {
                 // Create controlled filename (like websites do)
-                const filename = `doc-${Date.now()}-${originalName
+                const originalExt = path.extname(originalName);
+                const baseName = originalName
                   .normalize('NFC')
                   .replace(/[^a-z0-9.]/gi, "-")
-                  .substring(0, 50)}`;
+                  .substring(0, 50);
+                const filename = `doc-${Date.now()}-${baseName}`;
 
                 // Write file to temp location
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const tempPath = `/tmp/${filename}`;
                 fsSync.writeFileSync(tempPath, buffer);
+
+                // Save file locally for preview functionality
+                const uploadsDir = path.join(process.cwd(), "uploads");
+                if (!fsSync.existsSync(uploadsDir)) {
+                  fsSync.mkdirSync(uploadsDir, { recursive: true });
+                }
+                const localFileName = `${filename}${originalExt}`;
+                const localFilePath = path.join(uploadsDir, localFileName);
+                fsSync.writeFileSync(localFilePath, buffer);
 
                 // Upload via uploadToFileSearchStore (like websites)
                 let operation = await ai.fileSearchStores.uploadToFileSearchStore({
@@ -206,6 +218,7 @@ export async function POST(request: NextRequest) {
                     displayName: originalName,
                     mimeType: file.type || "application/octet-stream",
                     uri: fileUri,
+                    localPath: localFileName,
                   });
                   sendLog({ type: "info", message: `   ✓ ${originalName}` });
                 } else if (operation.error) {

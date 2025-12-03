@@ -16,6 +16,7 @@ import VoiceSettingsModal from "./VoiceSettingsModal";
 import TypingIndicator from "./TypingIndicator";
 import CodeBlock from "./CodeBlock";
 import MessageWithCitations from "./MessageWithCitations";
+import DocumentPreviewModal from "./DocumentPreviewModal";
 
 interface Citation {
   startIndex: number;
@@ -45,6 +46,7 @@ interface ChatConfig {
     uri: string;
     displayName?: string;
     url?: string;
+    localPath?: string; // Local file path for preview
   }>;
   createdAt: number;
   systemInstruction?: string;
@@ -104,11 +106,13 @@ function SourcesDisplay({ sources }: { sources?: Source[] }) {
 function SourcesSidebar({
   sources,
   isOpen,
-  onClose
+  onClose,
+  onDocumentClick,
 }: {
   sources: Source[];
   isOpen: boolean;
   onClose: () => void;
+  onDocumentClick?: (source: Source) => void;
 }) {
   const [sourceImages, setSourceImages] = useState<Record<string, string | null>>({});
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
@@ -265,6 +269,35 @@ function SourcesSidebar({
                       </div>
                     </div>
                   </a>
+                ) : source.localPath && onDocumentClick ? (
+                  <button
+                    onClick={() => onDocumentClick(source)}
+                    className="block w-full text-left rounded-lg overflow-hidden transition-all hover:shadow-md"
+                    style={{
+                      backgroundColor: "var(--color-background)",
+                    }}
+                  >
+                    {/* For document sources, show clickable card */}
+                    <div className="p-3">
+                      <div className="flex items-start space-x-2">
+                        <FileText
+                          className="w-4 h-4 flex-shrink-0 mt-0.5"
+                          style={{ color: "var(--color-primary)" }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium break-words line-clamp-2" style={{ color: "var(--color-text)" }}>
+                            {source.displayName}
+                          </p>
+                          <div className="flex items-center mt-1">
+                            <span className="text-xs" style={{ color: "var(--color-text-light)" }}>
+                              Dokument öffnen
+                            </span>
+                            <ChevronRight className="w-3 h-3 ml-1" style={{ color: "var(--color-text-light)" }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
                 ) : (
                   <div
                     className="block rounded-lg overflow-hidden"
@@ -272,7 +305,7 @@ function SourcesSidebar({
                       backgroundColor: "var(--color-background)",
                     }}
                   >
-                    {/* For document sources without URLs, just show icon */}
+                    {/* For sources without URLs and without fileName, just show icon */}
                     <div className="p-3">
                       <div className="flex items-start space-x-2">
                         <FileText
@@ -302,11 +335,13 @@ function TypedMessage({
   sources,
   citations,
   onComplete,
+  onDocumentClick,
 }: {
   content: string;
   sources?: Source[];
   citations?: Citation[];
   onComplete?: () => void;
+  onDocumentClick?: (source: Source) => void;
 }) {
   const { displayedText, isComplete, skip } = useTypewriter({
     text: content,
@@ -328,6 +363,7 @@ function TypedMessage({
           content={displayedText}
           citations={displayCitations}
           sources={sources}
+          onDocumentClick={onDocumentClick}
         />
         {!isComplete && (
           <span className="inline-block w-1 h-4 ml-1 animate-pulse" style={{ backgroundColor: "var(--color-text-light)" }} />
@@ -351,6 +387,8 @@ export default function SimpleChatInterface({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
   const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
+  const [previewSource, setPreviewSource] = useState<Source | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastSpokenMessageIdRef = useRef<string | null>(null);
@@ -373,6 +411,12 @@ export default function SimpleChatInterface({
   });
 
   const fileUris = chatConfig.files;
+
+  // Handler for opening document preview modal
+  const handleDocumentClick = (source: Source) => {
+    setPreviewSource(source);
+    setIsPreviewOpen(true);
+  };
 
   const scrollToLastUserMessage = () => {
     // Wait for DOM to fully render before scrolling
@@ -503,11 +547,37 @@ export default function SimpleChatInterface({
 
       if (data.usedFileUris && data.usedFileUris.length > 0) {
         // IMPORTANT: Preserve the order of usedFileUris for correct citation indices
+        // The usedFileUris from API are in format "{storeName}/files/{filename}"
+        // We need to match by the filename (last part after "/files/")
         sources = data.usedFileUris.map((uri: string) => {
-          const file = fileUris.find((f) => f.uri === uri);
+          // Extract the filename from the URI (after "/files/")
+          const uriFilename = uri.includes("/files/")
+            ? uri.split("/files/").pop()
+            : uri.split("/").pop();
+
+          // Match by displayName or the extracted filename
+          const file = fileUris.find((f) => {
+            const fileDisplayName = f.displayName || f.name.split("/").pop() || f.name;
+            return fileDisplayName === uriFilename || f.uri === uri;
+          });
+
           if (!file) return null;
+
+          const displayName = file.displayName || file.name.split("/").pop() || file.name;
+
+          // For document uploads (without URL), include localPath and mimeType for preview
+          if (!file.url && file.name) {
+            return {
+              displayName,
+              fileName: file.name, // Google Gemini file name (e.g., "files/abc123")
+              mimeType: file.mimeType,
+              localPath: file.localPath, // Local file path for preview
+            };
+          }
+
+          // For website sources, include URL
           return {
-            displayName: file.displayName || file.name.split("/").pop() || file.name,
+            displayName,
             url: file.url,
           };
         }).filter((s: Source | null): s is Source => s !== null);
@@ -570,6 +640,7 @@ export default function SimpleChatInterface({
         sources={usedSources}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onDocumentClick={handleDocumentClick}
       />
 
       {/* Main Content Area */}
@@ -724,6 +795,7 @@ export default function SimpleChatInterface({
                         sources={message.sources}
                         citations={message.citations}
                         onComplete={() => setLatestAssistantId(null)}
+                        onDocumentClick={handleDocumentClick}
                       />
                     ) : (
                       <div>
@@ -731,6 +803,7 @@ export default function SimpleChatInterface({
                           content={message.content}
                           citations={message.citations}
                           sources={message.sources}
+                          onDocumentClick={handleDocumentClick}
                         />
                         <FeedbackButtons
                           messageId={message.messageId}
@@ -857,6 +930,16 @@ export default function SimpleChatInterface({
         onVoiceChange={tts.setVoice}
         onPremiumVoiceChange={tts.setPremiumVoice}
         onTest={(text) => tts.speak(text)}
+      />
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        source={previewSource}
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPreviewSource(null);
+        }}
       />
     </div>
   );
