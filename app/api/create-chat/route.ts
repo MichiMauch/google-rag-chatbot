@@ -156,26 +156,24 @@ export async function POST(request: NextRequest) {
               });
 
               try {
-                // Create controlled filename (like websites do)
-                const originalExt = path.extname(originalName);
-                const baseName = originalName
+                // Create controlled filename with extension (like websites do)
+                // Keep the extension in the filename for consistency
+                const filename = `doc-${Date.now()}-${originalName
                   .normalize('NFC')
                   .replace(/[^a-z0-9.]/gi, "-")
-                  .substring(0, 50);
-                const filename = `doc-${Date.now()}-${baseName}`;
+                  .substring(0, 80)}`;
 
                 // Write file to temp location
                 const buffer = Buffer.from(await file.arrayBuffer());
                 const tempPath = `/tmp/${filename}`;
                 fsSync.writeFileSync(tempPath, buffer);
 
-                // Save file locally for preview functionality
+                // Save file locally for preview functionality (same filename)
                 const uploadsDir = path.join(process.cwd(), "uploads");
                 if (!fsSync.existsSync(uploadsDir)) {
                   fsSync.mkdirSync(uploadsDir, { recursive: true });
                 }
-                const localFileName = `${filename}${originalExt}`;
-                const localFilePath = path.join(uploadsDir, localFileName);
+                const localFilePath = path.join(uploadsDir, filename);
                 fsSync.writeFileSync(localFilePath, buffer);
 
                 // Upload via uploadToFileSearchStore (like websites)
@@ -218,7 +216,7 @@ export async function POST(request: NextRequest) {
                     displayName: originalName,
                     mimeType: file.type || "application/octet-stream",
                     uri: fileUri,
-                    localPath: localFileName,
+                    localPath: filename,
                   });
                   sendLog({ type: "info", message: `   ✓ ${originalName}` });
                 } else if (operation.error) {
