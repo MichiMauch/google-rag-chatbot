@@ -18,7 +18,7 @@
     "drizzle-orm": "^0.44.7",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.468.0",
-    "next": "^15.0.0",
+    "next": "^15.5.7",
     "pdfjs-dist": "^5.4.449",
     "puppeteer": "^24.29.1",
     "react": "^18.3.0",
