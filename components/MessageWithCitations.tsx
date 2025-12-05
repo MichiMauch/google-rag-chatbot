@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { Source } from "@/hooks/useChatHistory";
 import CodeBlock from "./CodeBlock";
 import CitationMarker from "./CitationMarker";
+import DocumentDownloadWidget from "./DocumentDownloadWidget";
 
 interface Citation {
   startIndex: number;
@@ -26,8 +27,6 @@ export default function MessageWithCitations({
   sources,
   onDocumentClick,
 }: MessageWithCitationsProps) {
-  console.log("MessageWithCitations:", { citations, sources });
-
   // Build source mapping with citation numbers
   const sourceMap = new Map<number, number>();
   const uniqueSources: Source[] = [];
@@ -145,6 +144,17 @@ export default function MessageWithCitations({
           }
         })}
       </div>
+
+      {/* Download Widget nur für markierte Formulare (isFormular: true in DB) */}
+      {(() => {
+        const formularSources = uniqueSources.filter(s => s.isFormular === true);
+        return formularSources.length > 0 && onDocumentClick ? (
+          <DocumentDownloadWidget
+            sources={formularSources}
+            onDocumentClick={onDocumentClick}
+          />
+        ) : null;
+      })()}
 
       {/* Numbered source list at the end */}
       {uniqueSources.length > 0 && (

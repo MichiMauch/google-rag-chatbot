@@ -7,6 +7,7 @@ export interface Source {
   fileName?: string; // Google Gemini file name (e.g., "files/abc123") for uploaded documents
   mimeType?: string; // MIME type for determining preview type
   localPath?: string; // Local file path for document preview
+  isFormular?: boolean; // True for downloadable forms (marked in DB)
 }
 
 export interface ChatSession {

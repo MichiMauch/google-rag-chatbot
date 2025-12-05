@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface UseTypewriterOptions {
   text: string;
@@ -10,12 +10,16 @@ export function useTypewriter({ text, speed = 50, onComplete }: UseTypewriterOpt
   const [displayedText, setDisplayedText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
 
+  // Store callback in ref to avoid dependency issues
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   // Skip to end function
   const skip = useCallback(() => {
     setDisplayedText(text);
     setIsComplete(true);
-    onComplete?.();
-  }, [text, onComplete]);
+    onCompleteRef.current?.();
+  }, [text]);
 
   useEffect(() => {
     if (!text) {
@@ -42,13 +46,13 @@ export function useTypewriter({ text, speed = 50, onComplete }: UseTypewriterOpt
         currentIndex++;
       } else {
         setIsComplete(true);
-        onComplete?.();
+        onCompleteRef.current?.();
         clearInterval(interval);
       }
     }, speed);
 
     return () => clearInterval(interval);
-  }, [text, speed, onComplete]);
+  }, [text, speed]); // onComplete NOT in dependencies - stored in ref
 
   return { displayedText, isComplete, skip };
 }
