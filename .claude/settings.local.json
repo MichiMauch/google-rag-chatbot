@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/tmp/upload_muhen.sh)",
+      "Bash(ssh 'root@78.46.189.129' \"ls -la /root/google-rag-chatbot/uploads/ | wc -l && ls /root/google-rag-chatbot/uploads/\")",
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:files.slack.com)",
+      "Bash(npm install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

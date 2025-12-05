@@ -72,8 +72,12 @@ interface GemeindeChatInterfaceProps {
 function GemeindeSidebar() {
   return (
     <div className="w-[280px] bg-white flex-shrink-0 flex flex-col">
-      {/* Logo */}
+      {/* Titel + Logo */}
       <div className="p-6 flex flex-col items-center">
+        <h1 className="text-lg font-bold text-gray-800 text-center mb-4">
+          KI Baugesuchs-Assistent
+        </h1>
+        <div className="w-full border-t border-gray-200 mb-4" />
         <div className="w-full mb-3">
           <img
             src={LOGO_URL}
@@ -382,7 +386,22 @@ export default function GemeindeChatInterface({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <>
+      <style jsx global>{`
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: "linear-gradient(-45deg, #60a5fa, #3b82f6, #06b6d4, #22d3ee)",
+          backgroundSize: "400% 400%",
+          animation: "gradient-shift 15s ease infinite"
+        }}
+      >
       {/* Main Container - 1440px fixed width with rounded corners */}
       <div className="w-[1280px] h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex">
         {/* Left Sidebar - White */}
@@ -602,6 +621,7 @@ export default function GemeindeChatInterface({
           setPreviewSource(null);
         }}
       />
-    </div>
+      </div>
+    </>
   );
 }
