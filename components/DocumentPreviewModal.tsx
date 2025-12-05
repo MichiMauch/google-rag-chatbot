@@ -113,7 +113,7 @@ export default function DocumentPreviewModal({
                 <button
                   onClick={onClose}
                   className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                  title="Schließen"
+                  title="Schliessen"
                 >
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
