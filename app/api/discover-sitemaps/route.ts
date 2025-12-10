@@ -42,10 +42,16 @@ export async function POST(request: NextRequest) {
         const urlsWithDates = await parseSitemapWithDates(sitemapUrl);
 
         if (urlsWithDates.length > 0) {
-          const isSitemapIndex =
-            urlsWithDates.length > 0 &&
-            urlsWithDates[0].url.includes("sitemap") &&
-            urlsWithDates[0].url.endsWith(".xml");
+          // Check if this is a sitemap index by checking the pathname (not query params)
+          let isSitemapIndex = false;
+          if (urlsWithDates.length > 0) {
+            try {
+              const firstUrlPath = new URL(urlsWithDates[0].url).pathname;
+              isSitemapIndex = firstUrlPath.includes("sitemap");
+            } catch {
+              isSitemapIndex = urlsWithDates[0].url.includes("sitemap");
+            }
+          }
 
           if (isSitemapIndex) {
             discoveredSitemaps.push({

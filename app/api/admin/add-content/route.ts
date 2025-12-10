@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ai } from "@/lib/gemini";
 import {
-  parseSitemapWithDates,
+  parseSitemapRecursive,
   scrapeMultiplePages,
 } from "@/lib/scraper";
 import { db } from "@/lib/db";
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
           sendLog({ type: "info", message: `🔍 Analysiere Sitemap: ${sitemapUrl}` });
 
-          const urlsWithDates = await parseSitemapWithDates(sitemapUrl);
+          const urlsWithDates = await parseSitemapRecursive(sitemapUrl);
           sendLog({ type: "info", message: `✅ ${urlsWithDates.length} URLs gefunden` });
 
           // Sort by date (newest first)

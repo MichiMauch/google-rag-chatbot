@@ -145,6 +145,57 @@ export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
 }
 
 /**
+ * Check if a URL looks like a sitemap URL (based on pathname, not query params)
+ */
+function isSitemapUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    // Check pathname for "sitemap" (before query parameters)
+    return urlObj.pathname.includes('sitemap');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parse sitemap recursively, following sitemap index files
+ */
+export async function parseSitemapRecursive(
+  sitemapUrl: string,
+  maxDepth = 3
+): Promise<Array<{ url: string; date?: Date }>> {
+  const urlsWithDates = await parseSitemapWithDates(sitemapUrl);
+
+  if (urlsWithDates.length === 0) return [];
+
+  // Check if first URL looks like a sitemap (child sitemap)
+  const firstUrl = urlsWithDates[0].url;
+  const looksLikeSitemap = isSitemapUrl(firstUrl);
+
+  if (!looksLikeSitemap || maxDepth <= 0) {
+    // These are content URLs, return them
+    return urlsWithDates;
+  }
+
+  // These are child sitemaps, parse them recursively
+  console.log(`Sitemap index detected, parsing ${urlsWithDates.length} child sitemaps...`);
+  const allUrls: Array<{ url: string; date?: Date }> = [];
+
+  for (const child of urlsWithDates) {
+    try {
+      console.log(`Parsing child sitemap: ${child.url}`);
+      const childUrls = await parseSitemapRecursive(child.url, maxDepth - 1);
+      console.log(`  Found ${childUrls.length} URLs`);
+      allUrls.push(...childUrls);
+    } catch (error) {
+      console.error(`Error parsing child sitemap ${child.url}:`, error);
+    }
+  }
+
+  return allUrls;
+}
+
+/**
  * Scrape a single page with Puppeteer
  */
 export async function scrapePage(url: string, browser: Browser): Promise<ScrapedPage | null> {
