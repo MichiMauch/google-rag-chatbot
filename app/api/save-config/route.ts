@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
           allowedDomains: chatConfig.allowedDomains ? JSON.stringify(chatConfig.allowedDomains) : null,
           systemInstruction: chatConfig.systemInstruction || null,
           aiAnalysisEnabled: chatConfig.aiAnalysisEnabled ?? false,
+          defaultQuestions: chatConfig.defaultQuestions ? JSON.stringify(chatConfig.defaultQuestions) : null,
           updatedAt: now,
         })
         .where(eq(chatConfigs.chatName, chatConfig.chatName));
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         allowedDomains: chatConfig.allowedDomains ? JSON.stringify(chatConfig.allowedDomains) : null,
         systemInstruction: chatConfig.systemInstruction || null,
         aiAnalysisEnabled: chatConfig.aiAnalysisEnabled ?? false,
+        defaultQuestions: chatConfig.defaultQuestions ? JSON.stringify(chatConfig.defaultQuestions) : null,
         createdAt: chatConfig.createdAt || now,
         updatedAt: now,
       });

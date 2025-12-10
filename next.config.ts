@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/baugesuchsassistent-gemeinde-muhen",
+        destination: "/test-gemeinde",
+      },
+    ];
+  },
   async headers() {
     return [
       // Allow embedding of /embed/* routes in iframes

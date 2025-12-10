@@ -39,6 +39,7 @@ export async function GET(
       allowedDomains: dbConfig.allowedDomains && dbConfig.allowedDomains.trim() !== "" ? JSON.parse(dbConfig.allowedDomains) : undefined,
       systemInstruction: dbConfig.systemInstruction || undefined,
       aiAnalysisEnabled: dbConfig.aiAnalysisEnabled ?? false,
+      defaultQuestions: dbConfig.defaultQuestions && dbConfig.defaultQuestions.trim() !== "" ? JSON.parse(dbConfig.defaultQuestions) : undefined,
       createdAt: dbConfig.createdAt,
     };
 

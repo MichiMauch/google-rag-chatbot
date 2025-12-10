@@ -51,6 +51,7 @@ interface ChatConfig {
   createdAt: number;
   systemInstruction?: string;
   allowedDomains?: string[];
+  defaultQuestions?: string[];
 }
 
 interface SimpleChatInterfaceProps {
@@ -719,6 +720,7 @@ export default function SimpleChatInterface({
                       handleSend(question);
                     }}
                     onDismiss={() => setShowSuggestions(false)}
+                    customQuestions={chatConfig.defaultQuestions}
                   />
                 )}
               </div>

@@ -255,6 +255,9 @@ export const chatConfigs = sqliteTable(
     // AI Analysis
     aiAnalysisEnabled: integer("ai_analysis_enabled", { mode: "boolean" }).default(false),
 
+    // Default suggested questions (JSON array of strings)
+    defaultQuestions: text("default_questions"),
+
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, X, Shield, Palette, FileText, Calendar, Globe, Code } from "lucide-react";
+import { Save, X, Shield, Palette, FileText, Calendar, Globe, Code, MessageCircleQuestion } from "lucide-react";
 import { themes } from "@/lib/themes";
 import AllowedDomainsModal from "./AllowedDomainsModal";
 import EmbedCodeModal from "./EmbedCodeModal";
@@ -25,6 +25,7 @@ interface ChatConfig {
   allowedDomains?: string[];
   systemInstruction?: string;
   aiAnalysisEnabled?: boolean;
+  defaultQuestions?: string[];
   createdAt: number;
 }
 
@@ -292,6 +293,43 @@ export default function ChatProfileSettings({
                 Diese Anweisung bestimmt das Verhalten und den Ton des Chat-Assistenten.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Default Questions Section */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <MessageCircleQuestion className="w-5 h-5 mr-2" />
+            Standardfragen
+          </h3>
+
+          <p className="text-sm text-gray-600 mb-4">
+            Diese Fragen werden Nutzern beim Start des Chats als Vorschläge angezeigt.
+            Leer lassen für automatisch generierte Fragen.
+          </p>
+
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Frage {index + 1}
+                </label>
+                <input
+                  type="text"
+                  value={config.defaultQuestions?.[index] || ""}
+                  onChange={(e) => {
+                    const newQuestions = [...(config.defaultQuestions || ["", "", "", ""])];
+                    // Ensure array has 4 elements
+                    while (newQuestions.length < 4) newQuestions.push("");
+                    newQuestions[index] = e.target.value;
+                    setConfig({ ...config, defaultQuestions: newQuestions });
+                    setIsEditing(true);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={`z.B. Was sind die Öffnungszeiten?`}
+                />
+              </div>
+            ))}
           </div>
         </div>
 

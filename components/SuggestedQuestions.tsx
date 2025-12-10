@@ -7,12 +7,14 @@ interface SuggestedQuestionsProps {
   fileUris: Array<{ name: string; mimeType: string; uri: string }>;
   onQuestionClick: (question: string) => void;
   onDismiss: () => void;
+  customQuestions?: string[];
 }
 
 export default function SuggestedQuestions({
   fileUris,
   onQuestionClick,
   onDismiss,
+  customQuestions,
 }: SuggestedQuestionsProps) {
   const [questions, setQuestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,15 @@ export default function SuggestedQuestions({
     // Cancel any ongoing request when fileUris change
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+    }
+
+    // Check for custom questions first (filter out empty strings)
+    const validCustomQuestions = customQuestions?.filter(q => q && q.trim() !== "") || [];
+    if (validCustomQuestions.length > 0) {
+      console.log("Using custom questions from config:", validCustomQuestions);
+      setQuestions(validCustomQuestions);
+      setLoading(false);
+      return;
     }
 
     if (fileUris.length > 0) {
@@ -70,7 +81,7 @@ export default function SuggestedQuestions({
         abortControllerRef.current.abort();
       }
     };
-  }, [fileUris.length]);
+  }, [fileUris.length, customQuestions]);
 
   async function generateQuestions(retryCount = 0, signal?: AbortSignal) {
     if (loading) return;

@@ -61,6 +61,7 @@ interface ChatConfig {
   createdAt: number;
   systemInstruction?: string;
   allowedDomains?: string[];
+  defaultQuestions?: string[];
 }
 
 interface GemeindeChatInterfaceProps {
@@ -438,6 +439,7 @@ export default function GemeindeChatInterface({
                         handleSend(question);
                       }}
                       onDismiss={() => setShowSuggestions(false)}
+                      customQuestions={chatConfig.defaultQuestions}
                     />
                   )}
                 </div>
