@@ -390,7 +390,6 @@ export default function SimpleChatInterface({
   const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const [previewSource, setPreviewSource] = useState<Source | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const lastUserMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastSpokenMessageIdRef = useRef<string | null>(null);
   const router = useRouter();
@@ -419,38 +418,34 @@ export default function SimpleChatInterface({
     setIsPreviewOpen(true);
   };
 
-  const scrollToLastUserMessage = () => {
-    // Wait for DOM to fully render before scrolling
+  const scrollToLastUserMessage = (userMessageIndex: number) => {
     requestAnimationFrame(() => {
-      if (lastUserMessageRef.current && messagesContainerRef.current) {
-        const container = messagesContainerRef.current;
-        const element = lastUserMessageRef.current;
+      const container = messagesContainerRef.current;
+      if (!container) return;
 
-        // Get positions using getBoundingClientRect for accurate positioning
-        const containerRect = container.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
+      const element = container.querySelector(`[data-message-index="${userMessageIndex}"]`) as HTMLElement;
+      if (!element) return;
 
-        // Calculate the distance from container top to element top
-        const relativeTop = elementRect.top - containerRect.top;
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const scrollDistance = elementRect.top - containerRect.top + container.scrollTop - 24;
 
-        // Add current scroll position to get absolute scroll position
-        const targetScrollTop = container.scrollTop + relativeTop;
-
-        // Get container's padding-top to position exactly at top
-        const computedStyle = window.getComputedStyle(container);
-        const paddingTop = parseInt(computedStyle.paddingTop, 10);
-
-        // Scroll to position - accounting for padding positions message at viewport top
-        container.scrollTop = targetScrollTop - paddingTop;
-      }
+      container.scrollTo({
+        top: scrollDistance,
+        behavior: "smooth"
+      });
     });
   };
 
   useEffect(() => {
-    // Only scroll when a new user message is added
+    const lastUserIndex = messages.reduce((lastIdx, msg, idx) => {
+      return msg.role === "user" ? idx : lastIdx;
+    }, -1);
+
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === "user") {
-      scrollToLastUserMessage();
+
+    if (lastMessage?.role === "user" && lastUserIndex >= 0) {
+      scrollToLastUserMessage(lastUserIndex);
     }
   }, [messages]);
 
@@ -694,7 +689,7 @@ export default function SimpleChatInterface({
         <div
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6"
-          style={{ scrollBehavior: 'smooth' }}
+          style={{ scrollBehavior: "auto" }}
         >
           <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
             {messages.length === 0 ? (
@@ -733,14 +728,10 @@ export default function SimpleChatInterface({
                 latestAssistantId !== null &&
                 !loading;
 
-              const isLastUserMessage =
-                message.role === "user" &&
-                index === messages.length - 1;
-
               return (
                 <motion.div
                   key={index}
-                  ref={isLastUserMessage ? lastUserMessageRef : null}
+                  data-message-index={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -830,6 +821,11 @@ export default function SimpleChatInterface({
             })}
 
             {loading && <TypingIndicator />}
+
+            {/* Spacer element for scroll room */}
+            {messages.length > 0 && (
+              <div className="min-h-[60vh]" aria-hidden="true" />
+            )}
           </div>
         </div>
 
