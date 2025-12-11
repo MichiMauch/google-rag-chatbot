@@ -7,8 +7,8 @@ import { db } from "@/lib/db";
 import { chatConfigs } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
-// Only use gemini-2.5-flash - no fallback to other models
-const MODEL = "gemini-2.5-flash";
+// Only use gemini-1.5-flash - no fallback to other models
+const MODEL = "gemini-1.5-flash";
 
 // Helper function for exponential backoff retry (optimized for overload)
 async function retryWithBackoff<T>(
@@ -57,7 +57,7 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-// Direct call to gemini-2.5-flash with retry logic
+// Direct call to gemini-1.5-flash with retry logic
 async function generateWithRetry(params: any): Promise<any> {
   console.log(`Using model: ${MODEL}`);
 
@@ -348,9 +348,9 @@ export async function POST(request: NextRequest) {
     let errorMessage = "Fehler bei der Anfrage";
 
     if (error.message?.includes("overloaded") || error.message?.includes("UNAVAILABLE") || error.status === 503) {
-      errorMessage = "⏳ gemini-2.5-flash ist momentan überlastet. Bitte warte 1-2 Minuten und versuche es erneut.";
+      errorMessage = "⏳ gemini-1.5-flash ist momentan überlastet. Bitte warte 1-2 Minuten und versuche es erneut.";
     } else if (error.message?.includes("quota") || error.message?.includes("429")) {
-      errorMessage = "API-Limit für gemini-2.5-flash erreicht. Bitte versuche es in ein paar Stunden erneut.";
+      errorMessage = "API-Limit für gemini-1.5-flash erreicht. Bitte versuche es in ein paar Stunden erneut.";
     } else if (error.message?.includes("invalid") || error.message?.includes("400")) {
       errorMessage = "Ungültige Anfrage. Bitte überprüfe deine Eingabe.";
     } else if (error.message) {
