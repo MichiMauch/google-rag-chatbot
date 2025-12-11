@@ -7,8 +7,8 @@ import { db } from "@/lib/db";
 import { chatConfigs } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
-// Only use gemini-1.5-flash - no fallback to other models
-const MODEL = "gemini-1.5-flash";
+// Only use gemini-2.0-flash - no fallback to other models
+const MODEL = "gemini-2.0-flash";
 
 // Helper function for exponential backoff retry (optimized for overload)
 async function retryWithBackoff<T>(
