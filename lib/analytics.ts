@@ -398,7 +398,7 @@ export async function getChatSessions(chatName: string, limit = 50) {
           .select()
           .from(chatMessages)
           .where(eq(chatMessages.sessionId, session.id))
-          .orderBy(chatMessages.createdAt);
+          .orderBy(desc(chatMessages.createdAt));
 
         return {
           ...session,
