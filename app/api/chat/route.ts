@@ -7,8 +7,8 @@ import { db } from "@/lib/db";
 import { chatConfigs } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
-// Only use gemini-2.0-flash - no fallback to other models
-const MODEL = "gemini-2.0-flash";
+// Only use gemini-2.5-flash - required for File Search tool
+const MODEL = "gemini-2.5-flash";
 
 // Helper function for exponential backoff retry (optimized for overload)
 async function retryWithBackoff<T>(
@@ -57,7 +57,7 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-// Direct call to gemini-2.0-flash with retry logic
+// Direct call to gemini-2.5-flash with retry logic
 async function generateWithRetry(params: any): Promise<any> {
   console.log(`Using model: ${MODEL}`);
 
